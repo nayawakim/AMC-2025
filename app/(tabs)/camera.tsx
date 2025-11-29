@@ -1,52 +1,79 @@
-import { View, Text, StyleSheet } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function CameraScreen() {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [isFront, setIsFront] = useState(false);
+
+  // Si les permissions ne sont pas encore chargées
+  if (!permission) return <View style={styles.center}><Text>Loading...</Text></View>;
+
+  // Si la caméra n'est pas autorisée sur l'appareil
+  if (!permission.granted) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.text}>L'application a besoin d'accéder à la caméra.</Text>
+        <TouchableOpacity onPress={requestPermission} style={styles.button}>
+          <Text style={styles.buttonText}>Autoriser</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Sinon afficher la vraie caméra
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>📷 Camera Page</Text>
-        <Text style={styles.subtitle}>Cette page est un placeholder temporaire.</Text>
-        <Text style={styles.helper}>
-          ➤ Si tu vois ceci dans Expo → TON ROUTING FONCTIONNE 🎉
-        </Text>
+      <CameraView 
+        style={StyleSheet.absoluteFill} 
+        facing={isFront ? "front" : "back"} 
+      />
+
+      {/* Boutons UI */}
+      <View style={styles.controls}>
+        <TouchableOpacity 
+          style={styles.switchBtn}
+          onPress={() => setIsFront(!isFront)}
+        >
+          <Text style={styles.buttonText}>🔄 Flip</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
+
+/* ------- STYLES ------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#111",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
+    backgroundColor: "black"
   },
-  card: {
-    backgroundColor: "#1c1c1c",
-    padding: 25,
-    borderRadius: 16,
-    width: "85%",
-    borderWidth: 1,
-    borderColor: "#333",
+  center: {
+    flex:1,
+    alignItems:"center",
+    justifyContent:"center",
+    backgroundColor:"#000"
   },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 10,
-    textAlign: "center",
+  text:{ color:"white", marginBottom:10 },
+  button:{
+    backgroundColor:"white",
+    paddingHorizontal:20,
+    paddingVertical:10,
+    borderRadius:8
   },
-  subtitle: {
-    color: "#bbb",
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 18,
+  buttonText:{ color:"black", fontWeight:"bold" },
+
+  controls:{
+    position:"absolute",
+    bottom:40,
+    width:"100%",
+    alignItems:"center"
   },
-  helper: {
-    color: "#ff4444",
-    textAlign: "center",
-    fontWeight: "500",
-    marginTop: 10,
+  switchBtn:{
+    backgroundColor:"rgba(255,255,255,0.3)",
+    padding:12,
+    borderRadius:50
   }
 });
+
