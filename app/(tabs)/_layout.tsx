@@ -28,6 +28,7 @@ export default function TabLayout() {
                     ),
                 }}
             />
+
             <Tabs.Screen
                 name="explore"
                 options={{
@@ -36,6 +37,20 @@ export default function TabLayout() {
                             size={28}
                             name="paperplane.fill"
                             color={"#000000"}
+                        />
+                    ),
+                }}
+            />
+
+            {/* 🔥 TA CAMERA ICI 🔥 */}
+            <Tabs.Screen
+                name="camera"
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol 
+                            size={28}
+                            name="camera.fill"
+                            color={"#000000"} 
                         />
                     ),
                 }}
