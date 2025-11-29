@@ -40,6 +40,18 @@ export default function TabLayout() {
                     ),
                 }}
             />
+            <Tabs.Screen
+                name="map"
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol
+                            size={28}
+                            name="map.fill"
+                            color={"#000000"}
+                        />
+                    ),
+                }}
+            />
         </Tabs>
     );
 }
