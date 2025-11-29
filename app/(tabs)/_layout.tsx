@@ -41,6 +41,7 @@ export default function TabLayout() {
                     ),
                 }}
             />
+<<<<<<< HEAD
 
             {/* 🔥 TA CAMERA ICI 🔥 */}
             <Tabs.Screen
@@ -51,6 +52,16 @@ export default function TabLayout() {
                             size={28}
                             name="camera.fill"
                             color={"#000000"} 
+=======
+            <Tabs.Screen
+                name="map"
+                options={{
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol
+                            size={28}
+                            name="map.fill"
+                            color={"#000000"}
+>>>>>>> e237cfae8f211c007b1f037796b321f2073cb555
                         />
                     ),
                 }}
