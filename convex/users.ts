@@ -34,11 +34,17 @@ export const updateUserLocation = mutation({
     },
 });
 
-// Récupérer tous les utilisateurs actifs (vu dans les 30 dernières secondes)
+// Récupérer tous les utilisateurs actifs (vu dans les 5 dernières minutes)
+// Délai plus long pour permettre la navigation entre pages sans disparaître
 export const getActiveUsers = query({
     args: {},
     handler: async (ctx) => {
-        const allUsers = await ctx.db.query("users").collect();
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000; // 5 minutes
+        const allUsers = await ctx.db
+            .query("users")
+            .withIndex("by_lastSeen")
+            .filter((q) => q.gte(q.field("lastSeen"), fiveMinutesAgo))
+            .collect();
         return allUsers;
     },
 });
