@@ -19,11 +19,13 @@ import {
     View,
 } from "react-native";
 import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import PlaceMarker from "@/components/map/PlaceMarker";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
+import { PLACE_TYPE_MAP } from "@/constants";
 
 const apocalypseMapStyle = [
     {
@@ -722,6 +724,46 @@ export default function Map() {
 
     return (
         <View style={styles.container}>
+            {/* Légende */}
+            <View style={styles.legendContainer}>
+                <View style={styles.legendHeader}>
+                    <Text style={styles.legendTitle}>LÉGENDE</Text>
+                </View>
+                <View style={styles.legendContent}>
+                    {/* Shelter */}
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendIconContainer, { backgroundColor: PLACE_TYPE_MAP.shelter.color }]}>
+                            <MaterialIcons name={PLACE_TYPE_MAP.shelter.icon} size={20} color="white" />
+                        </View>
+                        <Text style={styles.legendText}>{PLACE_TYPE_MAP.shelter.title}</Text>
+                    </View>
+                    
+                    {/* Food */}
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendIconContainer, { backgroundColor: PLACE_TYPE_MAP.food.color }]}>
+                            <MaterialIcons name={PLACE_TYPE_MAP.food.icon} size={20} color="white" />
+                        </View>
+                        <Text style={styles.legendText}>{PLACE_TYPE_MAP.food.title}</Text>
+                    </View>
+                    
+                    {/* Meds */}
+                    <View style={styles.legendItem}>
+                        <View style={[styles.legendIconContainer, { backgroundColor: PLACE_TYPE_MAP.meds.color }]}>
+                            <MaterialIcons name={PLACE_TYPE_MAP.meds.icon} size={20} color="white" />
+                        </View>
+                        <Text style={styles.legendText}>{PLACE_TYPE_MAP.meds.title}</Text>
+                    </View>
+                    
+                    {/* Zone de danger */}
+                    <View style={styles.legendItem}>
+                        <View style={styles.legendHazardContainer}>
+                            <View style={[styles.legendHazardCircle, { borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.3)" }]} />
+                        </View>
+                        <Text style={styles.legendText}>Zone de danger</Text>
+                    </View>
+                </View>
+            </View>
+
             <MapView
                 ref={mapRef}
                 style={styles.map}
@@ -1631,5 +1673,71 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "700",
         letterSpacing: 0.5,
+    },
+    // Styles pour la légende
+    legendContainer: {
+        position: "absolute",
+        top: 60,
+        right: 10,
+        backgroundColor: "#111827", // Noir/gris foncé
+        borderRadius: 12,
+        padding: 12,
+        minWidth: 180,
+        zIndex: 1000,
+        borderWidth: 2,
+        borderColor: "#dc2626", // Rouge
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    legendHeader: {
+        borderBottomWidth: 1,
+        borderBottomColor: "#dc2626", // Rouge
+        paddingBottom: 8,
+        marginBottom: 8,
+    },
+    legendTitle: {
+        color: "#dc2626", // Rouge
+        fontSize: 14,
+        fontWeight: "800",
+        letterSpacing: 1,
+        textAlign: "center",
+    },
+    legendContent: {
+        gap: 10,
+    },
+    legendItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    legendIconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: "#374151", // Gris foncé
+    },
+    legendHazardContainer: {
+        width: 32,
+        height: 32,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    legendHazardCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+    },
+    legendText: {
+        color: "#e5e7eb", // Gris clair
+        fontSize: 13,
+        fontWeight: "500",
+        flex: 1,
     },
 });
