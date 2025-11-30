@@ -14,11 +14,9 @@ import {
   View,
 } from "react-native";
 
-// Icon PNGs (relative path from app/(tabs)/chat.tsx)
 const CameraPng = require("../../assets/icons/camera.png");
 const SendPng = require("../../assets/icons/send.png");
 const FlipPng = require("../../assets/icons/flip.png");
-
 
 type Sender = "user" | "bot";
 
@@ -29,14 +27,14 @@ type Message = {
   imageUri?: string;
 };
 
+// 🧠 URL de ton backend IA
+const BACKEND_URL = "http://172.20.10.3:3000/chat";
+
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isFront, setIsFront] = useState(false);
-
-  // référence vers la caméra pour prendre une photo
   const cameraRef = useRef<CameraView | null>(null);
 
-  // état du chat
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { id: "1", from: "user", text: "c'est un zombie ??" },
@@ -51,20 +49,76 @@ export default function CameraScreen() {
     },
   ]);
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now().toString(), from: "user", text: message.trim() },
-    ]);
+  const [isBotThinking, setIsBotThinking] = useState(false);
+
+  async function getBotReply(userText: string): Promise<string> {
+    try {
+      const res = await fetch(BACKEND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText }),
+      });
+
+      const text = await res.text();
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} – ${text}`);
+      }
+
+      const data = JSON.parse(text);
+      return data.reply as string;
+    } catch (err) {
+      console.warn("Erreur fetch IA", err);
+      throw err;
+    }
+  }
+
+  const handleSend = async () => {
+    if (!message.trim() || isBotThinking) return;
+
+    const userText = message.trim();
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      from: "user",
+      text: userText,
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
     setMessage("");
+
+    try {
+      setIsBotThinking(true);
+
+      const botText = await getBotReply(userText);
+
+      const botMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        from: "bot",
+        text: botText,
+      };
+
+      setMessages((prev) => [...prev, botMsg]);
+    } catch (e) {
+      console.warn("Erreur IA", e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          from: "bot",
+          text:
+            "Erreur IA : " +
+            (e instanceof Error ? e.message : String(e)),
+        },
+      ]);
+    } finally {
+      setIsBotThinking(false);
+    }
   };
 
-  // 📷 bouton à côté du send : prend une photo et l'envoie dans le chat
   const handleTakePicture = async () => {
     try {
       if (!cameraRef.current) return;
-    const photo = await cameraRef.current.takePictureAsync();
+      const photo = await cameraRef.current.takePictureAsync();
 
       setMessages((prev) => [
         ...prev,
@@ -79,7 +133,6 @@ export default function CameraScreen() {
     }
   };
 
-  // Permissions pas encore chargées
   if (!permission)
     return (
       <View style={styles.center}>
@@ -87,7 +140,6 @@ export default function CameraScreen() {
       </View>
     );
 
-  // Caméra non autorisée
   if (!permission.granted) {
     return (
       <View style={styles.center}>
@@ -101,21 +153,15 @@ export default function CameraScreen() {
     );
   }
 
-  // Vue principale : caméra + chat
   return (
     <View style={styles.root}>
-      {/* Bloc caméra en haut */}
       <View style={styles.cameraWrapper}>
         <CameraView
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
           facing={isFront ? "front" : "back"}
         />
-
-        {/* Overlay gradient */}
         <View style={styles.cameraOverlay} />
-
-        {/* Controls par-dessus la caméra */}
         <View style={styles.controls}>
           <TouchableOpacity
             style={styles.iconButtonGhost}
@@ -126,7 +172,6 @@ export default function CameraScreen() {
         </View>
       </View>
 
-      {/* Bloc chat en bas */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -163,9 +208,16 @@ export default function CameraScreen() {
               )}
             </View>
           ))}
+
+          {isBotThinking && (
+            <View style={[styles.bubble, styles.botBubble]}>
+              <Text style={[styles.bubbleText, styles.botText]}>
+                Analyse en cours...
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
-        {/* Ligne d'input : bouton caméra + input + bouton send */}
         <View style={styles.inputRow}>
           <TouchableOpacity
             style={styles.cameraBtn}
@@ -181,7 +233,12 @@ export default function CameraScreen() {
             value={message}
             onChangeText={setMessage}
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+
+          <TouchableOpacity
+            style={styles.sendBtn}
+            onPress={handleSend}
+            disabled={isBotThinking}
+          >
             <Image source={SendPng} style={styles.sendIcon} />
           </TouchableOpacity>
         </View>
@@ -190,14 +247,8 @@ export default function CameraScreen() {
   );
 }
 
-/* ------- STYLES ------- */
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#020617", // dark navy
-  },
-
-  /* --- états simples --- */
+  root: { flex: 1, backgroundColor: "#020617" },
   center: {
     flex: 1,
     alignItems: "center",
@@ -212,8 +263,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonText: { color: "black", fontWeight: "bold" },
-
-  /* --- caméra --- */
   cameraWrapper: {
     height: "25%",
     marginHorizontal: 16,
@@ -238,7 +287,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-
   iconButtonGhost: {
     width: 40,
     height: 40,
@@ -249,22 +297,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  iconSmall: {
-    width: 20,
-    height: 20,
-    resizeMode: "contain",
-  },
-
-  /* --- chat --- */
+  iconSmall: { width: 20, height: 20, resizeMode: "contain" },
   chatContainer: {
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-  messages: {
-    flex: 1,
-  },
+  messages: { flex: 1 },
   bubble: {
     maxWidth: "80%",
     padding: 12,
@@ -284,31 +323,16 @@ const styles = StyleSheet.create({
     borderColor: "#1f2937",
     borderBottomLeftRadius: 6,
   },
-  bubbleText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  userText: {
-    color: "white",
-    fontWeight: "500",
-  },
-  botText: {
-    color: "#e5e7eb",
-  },
-
-  imageMessage: {
-    width: 180,
-    height: 120,
-    borderRadius: 16,
-  },
-
+  bubbleText: { fontSize: 14, lineHeight: 20 },
+  userText: { color: "white", fontWeight: "500" },
+  botText: { color: "#e5e7eb" },
+  imageMessage: { width: 180, height: 120, borderRadius: 16 },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     gap: 8,
   },
-
   cameraBtn: {
     width: 40,
     height: 40,
@@ -319,7 +343,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#020617",
   },
-
   input: {
     flex: 1,
     backgroundColor: "#020617",
@@ -331,7 +354,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
   },
-
   sendBtn: {
     width: 44,
     height: 44,
@@ -347,3 +369,4 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
 });
+
