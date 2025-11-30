@@ -1,14 +1,15 @@
 import CurrentUserMarker from "@/components/map/CurrentUserMarker";
 import InfectedUserMarker from "@/components/map/InfectedUserMarker";
 import OtherUserMarker from "@/components/map/OtherUserMarker";
-import { offsetCoordinates } from "@/lib/utils";
 import { getUserId } from "@/lib/database";
+import { offsetCoordinates } from "@/lib/utils";
 import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
 import { Accelerometer } from "expo-sensors";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
+    Animated,
     Modal,
     Platform,
     ScrollView,
@@ -152,6 +153,12 @@ export default function Map() {
     const [shakeAlertVisible, setShakeAlertVisible] = useState(false);
     const [dangerAlertVisible, setDangerAlertVisible] = useState(false);
     const [dangerAlertMessage, setDangerAlertMessage] = useState("");
+    
+    // Animations de tremblement pour les modales (X et Y pour un tremblement plus visible)
+    const shakeAnimationX = useRef(new Animated.Value(0)).current;
+    const shakeAnimationY = useRef(new Animated.Value(0)).current;
+    const dangerShakeAnimationX = useRef(new Animated.Value(0)).current;
+    const dangerShakeAnimationY = useRef(new Animated.Value(0)).current;
 
     const typeLabel = useMemo(() => {
         if (selectedType === "food") return "Nourriture / Eau";
@@ -222,7 +229,7 @@ export default function Map() {
         })();
     }, [reporterId, updateUserLocation]);
 
-    // Détection du shake pour déclencher une alerte (nécessite 1 seconde de shake continu)
+    // Détection du shake pour déclencher une alerte (détection rapide)
     const shakeStartTimeRef = useRef<number | null>(null);
     const isShakeDialogOpenRef = useRef<boolean>(false);
     const lastShakeAlertTimeRef = useRef<number>(0);
@@ -231,7 +238,7 @@ export default function Map() {
     useEffect(() => {
         let subscription: { remove: () => void } | null = null;
         const SHAKE_THRESHOLD = 1.5; // Seuil d'accélération pour détecter un shake
-        const SHAKE_DURATION_REQUIRED = 1000; // 1 seconde de shake continu requis
+        const SHAKE_DURATION_REQUIRED = 300; // 300ms de shake continu requis (détection rapide)
 
         const handleShake = () => {
             const now = Date.now();
@@ -306,6 +313,120 @@ export default function Map() {
         };
     }, [location, reporterId, createDangerAlert]);
 
+    // Déclencher l'animation de tremblement quand la modale shake devient visible
+    useEffect(() => {
+        if (shakeAlertVisible) {
+            // Réinitialiser les animations
+            shakeAnimationX.setValue(0);
+            shakeAnimationY.setValue(0);
+            
+            // Démarrer l'animation après un court délai pour s'assurer que la modale est montée
+            const timer = setTimeout(() => {
+                // Animation X et Y en parallèle pour un effet plus naturel
+                Animated.parallel([
+                    // Animation X
+                    Animated.sequence([
+                        Animated.timing(shakeAnimationX, {
+                            toValue: 20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: -20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: 20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: -20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: 15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: -15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: 10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: -10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationX, {
+                            toValue: 0,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    // Animation Y
+                    Animated.sequence([
+                        Animated.timing(shakeAnimationY, {
+                            toValue: -15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: 15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: -15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: 15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: -10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: 10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: -5,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: 5,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(shakeAnimationY, {
+                            toValue: 0,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ]).start();
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [shakeAlertVisible]);
+
     // Afficher les alertes reçues (une seule fois par alerte, un seul pop-up à la fois)
     const shownAlertsRef = useRef<Set<string>>(new Set());
     const isAlertDialogOpenRef = useRef<boolean>(false);
@@ -357,6 +478,140 @@ export default function Map() {
             });
         }
     }, [nearbyAlerts, reporterId]);
+
+    // Déclencher l'animation de tremblement quand la modale danger devient visible
+    useEffect(() => {
+        if (dangerAlertVisible) {
+            // Réinitialiser les animations
+            dangerShakeAnimationX.setValue(0);
+            dangerShakeAnimationY.setValue(0);
+            
+            // Démarrer l'animation après un court délai pour s'assurer que la modale est montée
+            const timer = setTimeout(() => {
+                // Animation X et Y en parallèle pour un effet plus naturel
+                Animated.parallel([
+                    // Animation X
+                    Animated.sequence([
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: 25,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: -25,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: 25,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: -25,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: 20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: -20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: 15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: -15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: 10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: -10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationX, {
+                            toValue: 0,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    // Animation Y
+                    Animated.sequence([
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: -20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: 20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: -20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: 20,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: -15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: 15,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: -10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: 10,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: -5,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: 5,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dangerShakeAnimationY, {
+                            toValue: 0,
+                            duration: 50,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ]).start();
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [dangerAlertVisible]);
 
     if (!location || !region || !mapData || !reporterId) {
         return (
@@ -650,7 +905,21 @@ export default function Map() {
                 }}
             >
                 <View style={styles.alertModalOverlay}>
-                    <View style={styles.alertModalContainer}>
+                    <Animated.View
+                        style={[
+                            styles.alertModalContainer,
+                            {
+                                transform: [
+                                    {
+                                        translateX: shakeAnimationX,
+                                    },
+                                    {
+                                        translateY: shakeAnimationY,
+                                    },
+                                ],
+                            },
+                        ]}
+                    >
                         <View style={styles.alertModalHeader}>
                             <Text style={styles.alertModalTitle}>
                                 ⚠️ DANGER IMMINENT
@@ -713,7 +982,7 @@ export default function Map() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
+                    </Animated.View>
                 </View>
             </Modal>
 
@@ -728,7 +997,21 @@ export default function Map() {
                 }}
             >
                 <View style={styles.alertModalOverlay}>
-                    <View style={styles.alertModalContainer}>
+                    <Animated.View
+                        style={[
+                            styles.alertModalContainer,
+                            {
+                                transform: [
+                                    {
+                                        translateX: dangerShakeAnimationX,
+                                    },
+                                    {
+                                        translateY: dangerShakeAnimationY,
+                                    },
+                                ],
+                            },
+                        ]}
+                    >
                         <View style={styles.alertModalHeader}>
                             <Text style={styles.alertModalTitle}>
                                 🚨 DANGER IMMINENT
@@ -758,7 +1041,7 @@ export default function Map() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
+                    </Animated.View>
                 </View>
             </Modal>
 
