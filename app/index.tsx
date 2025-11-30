@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getAllIds, initDatabase, saveId, deleteId } from "@/lib/database";
+import { getUserId, initDatabase, addUser, deleteUser } from "@/lib/database";
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -26,9 +26,9 @@ export default function OnboardingScreen() {
   // Au démarrage : initialiser la DB et charger l'ID s'il existe
   useEffect(() => {
     initDatabase();
-    const ids = getAllIds();
-    if (ids.length > 0) {
-      setCurrentId(ids[0].id);
+    const userId = getUserId();
+    if (userId) {
+      setCurrentId(userId);
     }
     setIsCheckingId(false);
   }, []);
@@ -75,23 +75,17 @@ export default function OnboardingScreen() {
         return;
       }
 
-      const ids = getAllIds();
-      if (ids.length > 0) {
-        const existingId = ids[0].id;
+      const existingUserId = getUserId();
 
-        // Même ID qu'enregistré → ne pas réenregistrer, aller à la carte
-        if (existingId === qrData.id) {
-          setCurrentId(existingId);
-          setIsScanning(false);
-          router.replace("/(tabs)/map");
-          return;
-        }
-
-        // Autre ID → supprimer l'ancien
-        deleteId(existingId);
+      // Même ID qu'enregistré → ne pas réenregistrer, aller à la carte
+      if (existingUserId === qrData.id) {
+        setCurrentId(existingUserId);
+        setIsScanning(false);
+        router.replace("/(tabs)/map");
+        return;
       }
 
-      const result = saveId(qrData.id);
+      const result = addUser(qrData.id);
 
       if (!result.success) {
         Alert.alert(
@@ -106,7 +100,7 @@ export default function OnboardingScreen() {
       setCurrentId(qrData.id);
       setIsScanning(false);
       router.replace("/(tabs)/map");
-    } catch (e) {
+    } catch {
       Alert.alert(
         "QR invalide",
         "Le contenu du QR doit être un JSON valide contenant un champ 'id'."
@@ -119,7 +113,7 @@ export default function OnboardingScreen() {
   const handleDeleteId = () => {
     if (!currentId) return;
 
-    const result = deleteId(currentId);
+    const result = deleteUser();
 
     if (!result.success) {
       Alert.alert(

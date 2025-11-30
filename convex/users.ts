@@ -22,12 +22,13 @@ export const updateUserLocation = mutation({
                 lastSeen: Date.now(),
             });
         } else {
-            // Créer un nouvel utilisateur
+            // Créer un nouvel utilisateur avec infected = false par défaut
             await ctx.db.insert("users", {
                 userId: args.userId,
                 latitude: args.latitude,
                 longitude: args.longitude,
                 lastSeen: Date.now(),
+                isInfected: false,
             });
         }
     },

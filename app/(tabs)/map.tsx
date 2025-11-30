@@ -2,7 +2,7 @@ import CurrentUserMarker from "@/components/map/CurrentUserMarker";
 import InfectedUserMarker from "@/components/map/InfectedUserMarker";
 import OtherUserMarker from "@/components/map/OtherUserMarker";
 import { offsetCoordinates } from "@/lib/utils";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getUserId } from "@/lib/database";
 import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
 import { Accelerometer } from "expo-sensors";
@@ -121,42 +121,12 @@ export default function Map() {
     //Id per device - lié au QR code ID
     const [reporterId, setReporterId] = useState<string | null>(null);
 
-    // Charger ou créer l'ID utilisateur au démarrage (QR code ID)
+    // Charger l'ID utilisateur au démarrage (QR code ID)
     useEffect(() => {
-        (async () => {
-            const USER_ID_KEY = "user_device_id";
-            const QR_CODE_ID_KEY = "user_qr_code_id";
-            try {
-                // D'abord, vérifier si on a un QR code ID sauvegardé
-                let qrCodeId = await AsyncStorage.getItem(QR_CODE_ID_KEY);
-                
-                if (!qrCodeId) {
-                    // Si pas de QR code ID, vérifier dans la base de données locale
-                    const { getAllIds } = await import("@/lib/database");
-                    const savedIds = getAllIds();
-                    if (savedIds.length > 0) {
-                        qrCodeId = savedIds[0].id;
-                        await AsyncStorage.setItem(QR_CODE_ID_KEY, qrCodeId);
-                    }
-                }
-                
-                // Si toujours pas de QR code ID, utiliser le device ID comme fallback
-                if (!qrCodeId) {
-                    let userId = await AsyncStorage.getItem(USER_ID_KEY);
-                    if (!userId) {
-                        userId = "device-" + Math.random().toString(36).slice(2) + "-" + Date.now();
-                        await AsyncStorage.setItem(USER_ID_KEY, userId);
-                    }
-                    qrCodeId = userId;
-                }
-                
-                setReporterId(qrCodeId);
-            } catch (error) {
-                console.error("Erreur lors du chargement de l'ID utilisateur:", error);
-                // Fallback: générer un ID temporaire
-                setReporterId("device-" + Math.random().toString(36).slice(2) + "-" + Date.now());
-            }
-        })();
+        const userId = getUserId();
+        if (userId) {
+            setReporterId(userId);
+        }
     }, []);
 
     //UI ajout de points sur la carte

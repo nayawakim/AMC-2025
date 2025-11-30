@@ -1,14 +1,9 @@
 import { api } from '@/convex/_generated/api';
 import {
-  deleteId,
-  deleteScannedQRCode,
-  generateRandomId,
-  getAllIds,
-  getAllScannedQRCodes,
+  getUserId,
   initDatabase,
-  QRCodeData,
-  saveId,
-  saveScannedQRCode,
+  addUser,
+  deleteUser,
 } from '@/lib/database';
 import { useMutation } from 'convex/react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -16,7 +11,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -26,38 +20,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TestScreen() {
   const [currentId, setCurrentId] = useState<string>('');
-  const [savedIds, setSavedIds] = useState<{ id: string; created_at: number }[]>([]);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showScanner, setShowScanner] = useState(false);
-  const [scannedQRCodes, setScannedQRCodes] = useState<QRCodeData[]>([]);
   const [permission, requestPermission] = useCameraPermissions();
   const markUserAsInfected = useMutation(api.users.markUserAsInfected);
 
   useEffect(() => {
     // Initialize database on mount
     initDatabase();
-    loadIds();
-    loadScannedQRCodes();
+    loadUserId();
   }, []);
 
-  const loadIds = () => {
-    const ids = getAllIds();
-    setSavedIds(ids);
-    if (ids.length > 0) {
-      setCurrentId(ids[0].id);
+  const loadUserId = () => {
+    const userId = getUserId();
+    if (userId) {
+      setCurrentId(userId);
     } else {
       setCurrentId('');
     }
   };
 
-  const loadScannedQRCodes = () => {
-    const codes = getAllScannedQRCodes();
-    setScannedQRCodes(codes);
+  const generateRandomId = (): string => {
+    return Math.random().toString(36).substring(2, 15) +
+           Math.random().toString(36).substring(2, 15);
   };
 
   const handleSaveId = async () => {
     // Check if an ID already exists
-    if (savedIds.length > 0) {
+    const existingId = getUserId();
+    if (existingId) {
       setMessage({
         text: 'You already have an ID! Delete it first to generate a new one.',
         type: 'error',
@@ -69,7 +60,7 @@ export default function TestScreen() {
     const newId = generateRandomId();
     setCurrentId(newId);
 
-    const result = saveId(newId);
+    const result = addUser(newId);
 
     setMessage({
       text: result.message,
@@ -77,24 +68,17 @@ export default function TestScreen() {
     });
 
     if (result.success) {
-      loadIds();
-      // Sauvegarder le QR code ID dans AsyncStorage pour l'utiliser dans map.tsx
-      try {
-        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-        await AsyncStorage.setItem('user_qr_code_id', newId);
-      } catch (error) {
-        console.error('Erreur lors de la sauvegarde du QR code ID:', error);
-      }
+      loadUserId();
     }
 
     // Clear message after 3 seconds
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleDeleteId = (idToDelete: string) => {
+  const handleDeleteId = () => {
     Alert.alert(
       'Delete ID',
-      `Are you sure you want to delete this ID?\n\n${idToDelete}`,
+      `Are you sure you want to delete this ID?\n\n${currentId}`,
       [
         {
           text: 'Cancel',
@@ -104,7 +88,7 @@ export default function TestScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            const result = deleteId(idToDelete);
+            const result = deleteUser();
 
             setMessage({
               text: result.message,
@@ -112,10 +96,8 @@ export default function TestScreen() {
             });
 
             if (result.success) {
-              loadIds();
-              if (currentId === idToDelete) {
-                setCurrentId('');
-              }
+              setCurrentId('');
+              loadUserId();
             }
 
             setTimeout(() => setMessage(null), 3000);
@@ -155,23 +137,17 @@ export default function TestScreen() {
         return;
       }
 
-      const result = saveScannedQRCode(qrData.id, qrData.infected);
+      // Mark the user as infected in Convex if needed
+      if (qrData.infected) {
+        markUserAsInfected({ userId: qrData.id }).catch((err: unknown) => {
+          console.error("Erreur lors du marquage de l'utilisateur comme infecté:", err);
+        });
+      }
 
       setMessage({
-        text: result.message,
-        type: result.success ? 'success' : 'error',
+        text: `Scanned user ${qrData.id} (${qrData.infected ? 'INFECTED' : 'SAFE'})`,
+        type: 'success',
       });
-
-      if (result.success) {
-        loadScannedQRCodes();
-        
-        // Si la personne scannée est infectée, la marquer comme infectée dans Convex
-        if (qrData.infected) {
-          markUserAsInfected({ userId: qrData.id }).catch((err: unknown) => {
-            console.error("Erreur lors du marquage de l'utilisateur comme infecté:", err);
-          });
-        }
-      }
 
       setTimeout(() => setMessage(null), 3000);
       setShowScanner(false);
@@ -185,36 +161,6 @@ export default function TestScreen() {
     }
   };
 
-  const handleDeleteQRCode = (id: string) => {
-    Alert.alert(
-      'Delete QR Code',
-      `Are you sure you want to delete this scanned QR code?\n\nID: ${id}`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            const result = deleteScannedQRCode(id);
-
-            setMessage({
-              text: result.message,
-              type: result.success ? 'success' : 'error',
-            });
-
-            if (result.success) {
-              loadScannedQRCodes();
-            }
-
-            setTimeout(() => setMessage(null), 3000);
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -256,13 +202,13 @@ export default function TestScreen() {
           <TouchableOpacity
             style={[
               styles.button,
-              savedIds.length > 0 ? styles.disabledButton : styles.saveButton
+              currentId ? styles.disabledButton : styles.saveButton
             ]}
             onPress={handleSaveId}
-            disabled={savedIds.length > 0}
+            disabled={!!currentId}
           >
             <Text style={styles.buttonText}>
-              {savedIds.length > 0 ? 'ID Already Generated' : 'Generate & Save ID'}
+              {currentId ? 'ID Already Generated' : 'Generate & Save ID'}
             </Text>
           </TouchableOpacity>
 
@@ -275,7 +221,7 @@ export default function TestScreen() {
         </View>
 
         {/* Saved ID Details */}
-        {savedIds.length > 0 && (
+        {currentId && (
           <View style={styles.listContainer}>
             <Text style={styles.listTitle}>
               Your Saved ID
@@ -283,14 +229,11 @@ export default function TestScreen() {
 
             <View style={styles.idItem}>
               <View style={styles.idInfo}>
-                <Text style={styles.idText}>{savedIds[0].id}</Text>
-                <Text style={styles.dateText}>
-                  Created: {new Date(savedIds[0].created_at).toLocaleString()}
-                </Text>
+                <Text style={styles.idText}>{currentId}</Text>
               </View>
               <TouchableOpacity
                 style={styles.deleteButton}
-                onPress={() => handleDeleteId(savedIds[0].id)}
+                onPress={handleDeleteId}
               >
                 <Text style={styles.deleteButtonText}>Delete</Text>
               </TouchableOpacity>
@@ -298,56 +241,11 @@ export default function TestScreen() {
           </View>
         )}
 
-        {savedIds.length === 0 && (
+        {!currentId && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
               No ID saved yet. Click the button above to generate and save your unique ID.
             </Text>
-          </View>
-        )}
-
-        {/* Scanned QR Codes Section */}
-        {scannedQRCodes.length > 0 && (
-          <View style={styles.qrSection}>
-            <Text style={styles.listTitle}>
-              Scanned QR Codes ({scannedQRCodes.length})
-            </Text>
-
-            <ScrollView style={styles.qrScrollView}>
-              {scannedQRCodes.map((qr) => (
-                <View key={qr.id} style={styles.qrItem}>
-                  <View style={styles.qrInfo}>
-                    <Text style={styles.idText}>{qr.id}</Text>
-                    <View style={styles.qrMetadata}>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          qr.infected ? styles.infectedBadge : styles.safeBadge,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusText,
-                            qr.infected ? styles.infectedText : styles.safeText,
-                          ]}
-                        >
-                          {qr.infected ? 'INFECTED' : 'SAFE'}
-                        </Text>
-                      </View>
-                      <Text style={styles.dateText}>
-                        {new Date(qr.scanned_at).toLocaleString()}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDeleteQRCode(qr.id)}
-                  >
-                    <Text style={styles.deleteButtonText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
           </View>
         )}
       </View>
