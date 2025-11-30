@@ -1,13 +1,16 @@
 import { v } from "convex/values";
+import { PLACE_TYPE_VALUES } from "../constants";
 import { mutation } from "./_generated/server";
 
-function roundCoordinates(value: number){
+const placeTypeValidator = v.union(...PLACE_TYPE_VALUES.map(v.literal));
+
+function roundCoordinates(value: number) {
     return Number(value.toFixed(3)); //100m de precision
 }
 
 export const reportPlace = mutation({
     args: {
-        type: v.string(),
+        type: placeTypeValidator,
         latitude: v.number(),
         longitude: v.number(),
         reporterId: v.id("users"),
@@ -26,11 +29,17 @@ export const reportPlace = mutation({
             reporterId: args.reporterId,
         });
 
-        const reports = await ctx.db.query("placeReports").withIndex("by_cell", q => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
+        const reports = await ctx.db
+            .query("placeReports")
+            .withIndex("by_cell", (q) =>
+                q.eq("cellLat", cellLat).eq("cellLong", cellLong)
+            )
+            .collect();
         const count = reports.length;
         const threshold = 3;
 
-        const existingPlace = await ctx.db.query("places")
+        const existingPlace = await ctx.db
+            .query("places")
             .filter((q) =>
                 q.and(
                     q.eq(q.field("type"), args.type),
@@ -41,15 +50,15 @@ export const reportPlace = mutation({
                 )
             )
             .first();
-            if (count >= threshold && !existingPlace){
-                await ctx.db.insert("places", {
-                    name: `${args.type} (confirmé)`,
-                    type: args.type,
-                    latitude: args.latitude,
-                    longitude: args.longitude,
-                    createdAt: Date.now(),
-                });
-            }
+        if (count >= threshold && !existingPlace) {
+            await ctx.db.insert("places", {
+                name: `${args.type} (confirmé)`,
+                type: args.type,
+                latitude: args.latitude,
+                longitude: args.longitude,
+                createdAt: Date.now(),
+            });
+        }
     },
 });
 
@@ -75,11 +84,17 @@ export const reportHazard = mutation({
             reporterId: args.reporterId,
         });
 
-        const reports = await ctx.db.query("hazardReports").withIndex("by_cell", (q) => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
+        const reports = await ctx.db
+            .query("hazardReports")
+            .withIndex("by_cell", (q) =>
+                q.eq("cellLat", cellLat).eq("cellLong", cellLong)
+            )
+            .collect();
         const count = reports.length;
         const threshold = 3;
 
-        const existingHazard = await ctx.db.query("hazards")
+        const existingHazard = await ctx.db
+            .query("hazards")
             .filter((q) =>
                 q.and(
                     q.gte(q.field("latitude"), cellLat - 0.001),
@@ -89,15 +104,15 @@ export const reportHazard = mutation({
                 )
             )
             .first();
-            if (count >= threshold && !existingHazard){
-                await ctx.db.insert("hazards", {
-                    name: "Zone de danger",
-                    latitude: args.latitude,
-                    longitude: args.longitude,
-                    radiusMeters: args.radiusMeters,
-                    severity: args.severity,
-                    createAt: Date.now(),
-                });
-            }
+        if (count >= threshold && !existingHazard) {
+            await ctx.db.insert("hazards", {
+                name: "Zone de danger",
+                latitude: args.latitude,
+                longitude: args.longitude,
+                radiusMeters: args.radiusMeters,
+                severity: args.severity,
+                createAt: Date.now(),
+            });
+        }
     },
 });
