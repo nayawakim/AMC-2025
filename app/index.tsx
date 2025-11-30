@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getUserId, initDatabase, addUser, deleteUser } from "@/lib/database";
+import { addUser, deleteUser, getUserId, initDatabase } from "@/lib/database";
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -156,7 +156,9 @@ export default function OnboardingScreen() {
 
             <View style={scanStyles.overlay}>
               <View style={scanStyles.scanArea} />
-              <Text style={scanStyles.scanText}>Place le code QR dans la zone</Text>
+              <Text style={scanStyles.scanText}>
+                Place le code QR dans la zone
+              </Text>
             </View>
           </View>
 
@@ -186,22 +188,6 @@ export default function OnboardingScreen() {
         <Text style={styles.subtitle}>
           Scanne ton QR code pour enregistrer ton ID
         </Text>
-
-        {currentId && (
-          <View style={styles.idRow}>
-            <View>
-              <Text style={styles.currentIdLabel}>ID enregistré :</Text>
-              <Text style={styles.currentIdText}>{currentId}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.deleteIdBtn}
-              onPress={handleDeleteId}
-            >
-              <Text style={styles.deleteIdText}>✖</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <TouchableOpacity
           style={styles.primaryButton}
@@ -234,6 +220,20 @@ export default function OnboardingScreen() {
             Tu peux changer la permission dans les réglages du téléphone.
           </Text>
         )}
+
+        {/* 🔽 Bloc "Changer d'utilisateur" pleine largeur, même taille que les autres */}
+        {currentId && (
+          <TouchableOpacity
+            style={styles.changeUserButton}
+            onPress={handleDeleteId}
+          >
+            <Text style={styles.changeUserText}>Changer d'utilisateur</Text>
+
+            <View style={styles.changeUserX}>
+              <Text style={styles.changeUserXText}>✖</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -257,40 +257,36 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // bloc ID + bouton suppression
-  idRow: {
+  // bouton "Changer d'utilisateur" full-width
+  changeUserButton: {
+    marginTop: 16,
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#4b5563",
+    backgroundColor: "#0f172a",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#111827",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#374151",
+    paddingHorizontal: 16,
   },
-  currentIdLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginBottom: 4,
+  changeUserText: {
+    color: "#cbd5e1",
+    fontSize: 15,
   },
-  currentIdText: {
-    fontSize: 14,
-    color: "#e5e7eb",
-    fontFamily: "monospace",
-  },
-  deleteIdBtn: {
-    backgroundColor: "#ef4444",
-    width: 32,
-    height: 32,
+  changeUserX: {
+    backgroundColor: "#cbd5e1",
+    width: 26,
+    height: 26,
     borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
   },
-  deleteIdText: {
+  changeUserXText: {
     color: "white",
-    fontSize: 18,
     fontWeight: "bold",
+    fontSize: 14,
   },
 
   // boutons
