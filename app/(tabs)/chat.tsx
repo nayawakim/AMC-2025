@@ -54,7 +54,7 @@ export default function CameraScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.text}>
-          L'application a besoin d'accéder à la caméra.
+          L&apos;application a besoin d&apos;accéder à la caméra.
         </Text>
         <TouchableOpacity onPress={requestPermission} style={styles.button}>
           <Text style={styles.buttonText}>Autoriser</Text>

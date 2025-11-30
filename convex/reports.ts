@@ -10,7 +10,7 @@ export const reportPlace = mutation({
         type: v.string(),
         latitude: v.number(),
         longitude: v.number(),
-        reporterId: v.id("users"),
+        reporterId: v.string(),
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -28,7 +28,7 @@ export const reportPlace = mutation({
 
         const reports = await ctx.db.query("placeReports").withIndex("by_cell", q => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
         const count = reports.length;
-        const threshold = 3;
+        const threshold = 1;
 
         const existingPlace = await ctx.db.query("places")
             .filter((q) =>
@@ -42,6 +42,13 @@ export const reportPlace = mutation({
             )
             .first();
             if (count >= threshold && !existingPlace){
+                console.log("BACKEND: CREATING OFFICIAL PLACE", {
+                    count,
+                    threshold,
+                    type: args.type,
+                    latitude: args.latitude,
+                    longitude: args.longitude,
+                });
                 await ctx.db.insert("places", {
                     name: `${args.type} (confirmé)`,
                     type: args.type,
@@ -49,6 +56,8 @@ export const reportPlace = mutation({
                     longitude: args.longitude,
                     createdAt: Date.now(),
                 });
+            } else {
+                console.log("Place NOT created:", { count, threshold, existingPlace: !!existingPlace });
             }
     },
 });
@@ -59,7 +68,7 @@ export const reportHazard = mutation({
         longitude: v.number(),
         radiusMeters: v.number(),
         severity: v.number(),
-        reporterId: v.id("users"),
+        reporterId: v.string(),
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -77,7 +86,7 @@ export const reportHazard = mutation({
 
         const reports = await ctx.db.query("hazardReports").withIndex("by_cell", (q) => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
         const count = reports.length;
-        const threshold = 3;
+        const threshold = 1;
 
         const existingHazard = await ctx.db.query("hazards")
             .filter((q) =>
@@ -90,6 +99,14 @@ export const reportHazard = mutation({
             )
             .first();
             if (count >= threshold && !existingHazard){
+                console.log("BACKEND: CREATING OFFICIAL HAZARD", {
+                    count,
+                    threshold,
+                    latitude: args.latitude,
+                    longitude: args.longitude,
+                    severity: args.severity,
+                    radiusMeters: args.radiusMeters,
+                });
                 await ctx.db.insert("hazards", {
                     name: "Zone de danger",
                     latitude: args.latitude,
@@ -98,6 +115,8 @@ export const reportHazard = mutation({
                     severity: args.severity,
                     createAt: Date.now(),
                 });
+            } else {
+                console.log("Hazard NOT created:", { count, threshold, existingHazard: !!existingHazard });
             }
     },
 });

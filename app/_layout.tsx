@@ -1,16 +1,24 @@
 import { ThemeProvider, useTheme } from "@/lib/theme-context";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "./global.css";
+
+const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
+    unsavedChangesWarning: false,
+});
+
 export const unstable_settings = {
     anchor: "(tabs)",
 };
 
 export default function RootLayout() {
     return (
-        <ThemeProvider defaultTheme="system">
-            <AppContent />
-        </ThemeProvider>
+        <ConvexProvider client={convex}>
+            <ThemeProvider defaultTheme="system">
+                <AppContent />
+            </ThemeProvider>
+        </ConvexProvider>
     );
 }
 
