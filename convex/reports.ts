@@ -4,6 +4,8 @@ import { mutation } from "./_generated/server";
 
 const placeTypeValidator = v.union(...PLACE_TYPE_VALUES.map(v.literal));
 
+const threshold = 1;
+
 function roundCoordinates(value: number) {
     return Number(value.toFixed(3)); //100m de precision
 }
@@ -36,7 +38,6 @@ export const reportPlace = mutation({
             )
             .collect();
         const count = reports.length;
-        const threshold = 1;
 
         const existingPlace = await ctx.db
             .query("places")
@@ -104,7 +105,6 @@ export const reportHazard = mutation({
             )
             .collect();
         const count = reports.length;
-        const threshold = 1;
 
         const existingHazard = await ctx.db
             .query("hazards")

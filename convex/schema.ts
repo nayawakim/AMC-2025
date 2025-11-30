@@ -30,7 +30,7 @@ export default defineSchema({
         cellLat: v.number(),
         cellLong: v.number(),
         createdAt: v.number(), //timestamp
-        reporterId: v.id("users"),
+        reporterId: v.string(),
     }).index("by_cell", ["cellLat", "cellLong"]),
 
     hazardReports: defineTable({
@@ -40,6 +40,6 @@ export default defineSchema({
         cellLat: v.number(),
         cellLong: v.number(),
         createdAt: v.number(), //timestamp
-        reporterId: v.id("users"),
+        reporterId: v.string(),
     }).index("by_cell", ["cellLat", "cellLong"]),
 });
