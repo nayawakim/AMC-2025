@@ -167,14 +167,14 @@ export default function ScanScreen() {
                                     Éloignez-vous immédiatement de cette
                                     personne !
                                 </Text>
-                                <View style={styles.userIdContainer}>
+                                {/* <View style={styles.userIdContainer}>
                                     <Text style={styles.userIdLabel}>
                                         ID Utilisateur:
                                     </Text>
                                     <Text style={styles.userIdText}>
                                         {scannedUser.id}
                                     </Text>
-                                </View>
+                                </View> */}
                             </View>
                         ) : (
                             // Carte verte pour personne saine
@@ -187,12 +187,12 @@ export default function ScanScreen() {
                                     Cette personne n'est pas infectée. Vous
                                     pouvez interagir en toute sécurité.
                                 </Text>
-                                <View style={styles.userIdContainer}>
+                                {/* <View style={styles.userIdContainer}>
                                     <Text style={styles.userIdLabel}>
                                         ID Utilisateur:
                                     </Text>
-                                    {/* <Text style={styles.userIdText}>{scannedUser.id}</Text> */}
-                                </View>
+                                    <Text style={styles.userIdText}>{scannedUser.id}</Text>
+                                </View> */}
                             </View>
                         )}
 

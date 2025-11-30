@@ -822,7 +822,7 @@ export default function Map() {
                 mapType="satellite"
                 customMapStyle={apocalypseMapStyle}
                 showsUserLocation={false}
-                showsMyLocationButton={true}
+                showsMyLocationButton={false}
                 initialRegion={region}
                 onRegionChangeComplete={(r) => setRegion(r)}
                 onPress={(e) => {
@@ -1432,19 +1432,22 @@ const styles = StyleSheet.create({
     },
     addButtonContainer: {
         position: "absolute",
-        bottom: 30,
+        bottom: 26,
         alignSelf: "center",
     },
     addButton: {
         backgroundColor: "#111827",
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingVertical: 16,
         borderRadius: 999,
+        borderWidth: 2,
+        borderColor: "#dc2626", // Rouge
     },
     addButtonText: {
-        color: "white",
-        fontWeight: "600",
+        // color: "white",
+        fontWeight: "500",
         fontSize: 16,
+        color: "#dc2626", // Rouge
     },
     confirmBar: {
         position: "absolute",
@@ -1744,7 +1747,8 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     legendTitle: {
-        color: "#dc2626", // Rouge
+        // color: "#dc2626", // Rouge
+        color: "#fff", // Rouge
         fontSize: 14,
         fontWeight: "800",
         letterSpacing: 1,
