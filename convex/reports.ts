@@ -10,7 +10,7 @@ export const reportPlace = mutation({
         type: v.string(),
         latitude: v.number(),
         longitude: v.number(),
-        reporterId: v.id("users"),
+        reporterId: v.string(), // Device ID string
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -59,7 +59,7 @@ export const reportHazard = mutation({
         longitude: v.number(),
         radiusMeters: v.number(),
         severity: v.number(),
-        reporterId: v.id("users"),
+        reporterId: v.string(), // Device ID string
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);

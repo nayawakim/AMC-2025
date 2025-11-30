@@ -1,5 +1,6 @@
 import CurrentUserMarker from "@/components/map/CurrentUserMarker";
 import { offsetCoordinates } from "@/lib/utils";
+import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -120,6 +121,7 @@ export default function Map() {
     const [selectedHazardId, setSelectedHazardId] = useState<string | null>(
         null
     );
+    const [region, setRegion] = useState<Region | null>(null);
 
     const typeLabel = useMemo(() => {
         if (selectedType === "food") return "Nourriture / Eau";
@@ -140,9 +142,17 @@ export default function Map() {
             }
 
             const loc = await Location.getCurrentPositionAsync({});
-            setLocation(
-                offsetCoordinates(loc.coords.latitude, loc.coords.longitude)
+            const offset = offsetCoordinates(
+                loc.coords.latitude,
+                loc.coords.longitude
             );
+            setLocation(offset);
+            setRegion({
+                latitude: offset.latitude,
+                longitude: offset.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+            });
 
             // Watch position for updates
             Location.watchPositionAsync(
@@ -661,6 +671,27 @@ export default function Map() {
             )}
 
         </View>
+    );
+}
+
+type ChipProps = {
+    label: string;
+    selected: boolean;
+    onPress: () => void;
+};
+
+function TypeChip({ label, selected, onPress }: ChipProps) {
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            style={[styles.chip, selected && styles.chipSelected]}
+        >
+            <Text
+                style={[styles.chipText, selected && styles.chipTextSelected]}
+            >
+                {label}
+            </Text>
+        </TouchableOpacity>
     );
 }
 

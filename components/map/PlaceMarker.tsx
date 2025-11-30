@@ -11,7 +11,11 @@ export default function PlaceMarker({
     place: Doc<"places">;
     onDelete?: () => void;
 }) {
-    const placeConfig = PLACE_TYPE_MAP[place.type];
+    const placeConfig = PLACE_TYPE_MAP[place.type as keyof typeof PLACE_TYPE_MAP] || {
+        title: place.type,
+        icon: "place" as keyof typeof MaterialIcons.glyphMap,
+        color: "#6b7280",
+    };
 
     return (
         <Marker
