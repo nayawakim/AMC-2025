@@ -13,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 const CameraPng = require("../../assets/icons/camera.png");
 const SendPng = require("../../assets/icons/send.png");
@@ -26,9 +28,6 @@ type Message = {
   text?: string;
   imageUri?: string;
 };
-
-// 🧠 URL de ton backend IA
-const BACKEND_URL = "http://172.20.10.3:3000/chat";
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -51,24 +50,15 @@ export default function CameraScreen() {
 
   const [isBotThinking, setIsBotThinking] = useState(false);
 
+  // Use Convex action instead of fetch
+  const sendMessageAction = useAction(api.chat.sendMessage);
+
   async function getBotReply(userText: string): Promise<string> {
     try {
-      const res = await fetch(BACKEND_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText }),
-      });
-
-      const text = await res.text();
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} – ${text}`);
-      }
-
-      const data = JSON.parse(text);
-      return data.reply as string;
+      const response = await sendMessageAction({ message: userText });
+      return response.reply;
     } catch (err) {
-      console.warn("Erreur fetch IA", err);
+      console.warn("Erreur IA Convex", err);
       throw err;
     }
   }
