@@ -48,12 +48,32 @@ export const reportPlace = mutation({
             )
             .first();
         if (count >= threshold && !existingPlace) {
+            console.log("BACKEND: CREATING OFFICIAL PLACE", {
+                count,
+                threshold,
+                type: args.type,
+                latitude: args.latitude,
+                longitude: args.longitude,
+            });
             await ctx.db.insert("places", {
                 name: `${args.type} (confirmé)`,
                 type: args.type,
                 latitude: args.latitude,
                 longitude: args.longitude,
                 createdAt: Date.now(),
+            });
+        } else {
+            console.log("Place NOT created:", {
+                count,
+                threshold,
+                type: args.type,
+                needsMoreReports: count < threshold,
+                existingPlace: !!existingPlace,
+                cellLat,
+                cellLong,
+                reason: existingPlace
+                    ? "Place already exists in this area"
+                    : `Need ${threshold - count} more report(s) to create place`,
             });
         }
     },
