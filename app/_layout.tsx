@@ -12,6 +12,7 @@ export const unstable_settings = {
 // Get Convex URL from environment variables
 // You can set this in a .env file as EXPO_PUBLIC_CONVEX_URL
 // Or run: npx convex dev to get the URL automatically
+
 const convexUrl =
     process.env.EXPO_PUBLIC_CONVEX_URL ||
     Constants.expoConfig?.extra?.convexUrl;
