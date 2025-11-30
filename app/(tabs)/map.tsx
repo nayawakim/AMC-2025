@@ -3,7 +3,9 @@ import InfectedUserMarker from "@/components/map/InfectedUserMarker";
 import OtherUserMarker from "@/components/map/OtherUserMarker";
 import { getUserId } from "@/lib/database";
 import { offsetCoordinates } from "@/lib/utils";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Slider from "@react-native-community/slider";
+import { Audio } from "expo-av";
 import * as Location from "expo-location";
 import { Accelerometer } from "expo-sensors";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -19,13 +21,12 @@ import {
     View,
 } from "react-native";
 import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import PlaceMarker from "@/components/map/PlaceMarker";
+import { PLACE_TYPE_MAP } from "@/constants";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { PLACE_TYPE_MAP } from "@/constants";
 
 const apocalypseMapStyle = [
     {
@@ -131,6 +132,41 @@ export default function Map() {
             setReporterId(userId);
         }
     }, []);
+
+    // Charger le son d'alerte au démarrage
+    useEffect(() => {
+        const loadSound = async () => {
+            try {
+                // Configurer le mode audio pour permettre la lecture même en mode silencieux
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                });
+            } catch (error) {
+                console.warn("Erreur lors de la configuration audio:", error);
+            }
+        };
+        loadSound();
+    }, []);
+
+    // Fonction pour jouer le son d'alerte et les vibrations
+    const playAlertSound = async () => {
+        // Toujours jouer les vibrations haptics (méthode principale, fiable)
+        try {
+            const Haptics = await import("expo-haptics");
+            // Vibration forte pour l'alerte
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            // Ajouter une vibration supplémentaire après un court délai pour un effet d'alerte
+            setTimeout(() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }, 100);
+        } catch (hapticError) {
+            console.warn("Erreur haptics:", hapticError);
+        }
+
+        // Les vibrations haptics sont la méthode principale et fonctionnent toujours
+        // Pour ajouter un son plus tard, on peut utiliser un fichier audio local
+    };
 
     //UI ajout de points sur la carte
     const [isAdding, setIsAdding] = useState(false);
@@ -260,6 +296,10 @@ export default function Map() {
 
             // Afficher la modale d'alerte rouge personnalisée
             setShakeAlertVisible(true);
+            // Jouer le son d'alerte
+            playAlertSound();
+            // Jouer le son d'alerte
+            playAlertSound();
         };
 
         (async () => {
