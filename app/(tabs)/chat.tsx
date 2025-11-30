@@ -4,16 +4,16 @@ import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import React, { useState } from "react";
 import {
-    Image,
-    ImageBackground,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -192,7 +192,7 @@ export default function ChatScreen() {
 
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Comment puis-je t'aider ?"
+                                    placeholder="Comment puis-je vous aider ?"
                                     placeholderTextColor="#9ca3af"
                                     value={message}
                                     onChangeText={setMessage}
