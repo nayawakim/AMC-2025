@@ -8,18 +8,18 @@
  * @module
  */
 
-import type * as places from "../places.js";
+import type * as map from "../map.js";
 import type * as reports from "../reports.js";
 
 import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
+    ApiFromModules,
+    FilterApi,
+    FunctionReference,
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  places: typeof places;
-  reports: typeof reports;
+    map: typeof map;
+    reports: typeof reports;
 }>;
 
 /**
@@ -31,8 +31,8 @@ declare const fullApi: ApiFromModules<{
  * ```
  */
 export declare const api: FilterApi<
-  typeof fullApi,
-  FunctionReference<any, "public">
+    typeof fullApi,
+    FunctionReference<any, "public">
 >;
 
 /**
@@ -44,8 +44,8 @@ export declare const api: FilterApi<
  * ```
  */
 export declare const internal: FilterApi<
-  typeof fullApi,
-  FunctionReference<any, "internal">
+    typeof fullApi,
+    FunctionReference<any, "internal">
 >;
 
 export declare const components: {};
