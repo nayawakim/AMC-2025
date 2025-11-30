@@ -16,31 +16,7 @@ export const reportPlace = mutation({
         const cellLat = roundCoordinates(args.latitude);
         const cellLong = roundCoordinates(args.longitude);
 
-        // Vérifier d'abord si une place existe déjà dans cette zone
-        const existingPlace = await ctx.db
-            .query("places")
-            .filter((q) =>
-                q.and(
-                    q.eq(q.field("type"), args.type),
-                    q.gte(q.field("latitude"), cellLat - 0.001),
-                    q.lte(q.field("latitude"), cellLat + 0.001),
-                    q.gte(q.field("longitude"), cellLong - 0.001),
-                    q.lte(q.field("longitude"), cellLong + 0.001)
-                )
-            )
-            .first();
-
-        // Si une place existe déjà, ne rien faire
-        if (existingPlace) {
-            console.log("Place already exists in this area:", {
-                type: args.type,
-                cellLat,
-                cellLong,
-            });
-            return;
-        }
-
-        // Insérer le report
+        // Insérer le report (permet la création de plusieurs places du même type même si proches)
         await ctx.db.insert("placeReports", {
             type: args.type,
             latitude: args.latitude,
