@@ -118,6 +118,23 @@ export const reportHazard = mutation({
             )
             .first();
         if (count >= threshold && !existingHazard) {
+            // Nom de la zone selon le niveau de sévérité (1-5)
+            const getHazardName = (severity: number): string => {
+                switch (severity) {
+                    case 1:
+                        return "Zone sécuritaire";
+                    case 2:
+                        return "Zone moins sécuritaire";
+                    case 3:
+                        return "Zone légèrement dangereuse";
+                    case 4:
+                        return "Zone moyennement dangereuse";
+                    case 5:
+                    default:
+                        return "Zone très dangereuse";
+                }
+            };
+
             console.log("BACKEND: CREATING OFFICIAL HAZARD", {
                 count,
                 threshold,
@@ -127,7 +144,7 @@ export const reportHazard = mutation({
                 radiusMeters: args.radiusMeters,
             });
             await ctx.db.insert("hazards", {
-                name: "Zone de danger",
+                name: getHazardName(args.severity),
                 latitude: args.latitude,
                 longitude: args.longitude,
                 radiusMeters: args.radiusMeters,
@@ -141,5 +158,57 @@ export const reportHazard = mutation({
                 existingHazard: !!existingHazard,
             });
         }
+    },
+});
+
+// Modifier une zone de danger
+export const updateHazard = mutation({
+    args: {
+        hazardId: v.id("hazards"),
+        severity: v.number(),
+        radiusMeters: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const getHazardName = (severity: number): string => {
+            switch (severity) {
+                case 1:
+                    return "Zone sécuritaire";
+                case 2:
+                    return "Zone moins sécuritaire";
+                case 3:
+                    return "Zone légèrement dangereuse";
+                case 4:
+                    return "Zone moyennement dangereuse";
+                case 5:
+                default:
+                    return "Zone très dangereuse";
+            }
+        };
+
+        await ctx.db.patch(args.hazardId, {
+            name: getHazardName(args.severity),
+            severity: args.severity,
+            radiusMeters: args.radiusMeters,
+        });
+    },
+});
+
+// Supprimer une zone de danger
+export const deleteHazard = mutation({
+    args: {
+        hazardId: v.id("hazards"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.hazardId);
+    },
+});
+
+// Supprimer un point
+export const deletePlace = mutation({
+    args: {
+        placeId: v.id("places"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.placeId);
     },
 });

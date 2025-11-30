@@ -11,10 +11,11 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import MapView, { Circle, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 import PlaceMarker from "@/components/map/PlaceMarker";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 
 const apocalypseMapStyle = [
@@ -34,40 +35,52 @@ const apocalypseMapStyle = [
 
 type PlaceType = "shelter" | "food" | "meds" | "danger";
 
-// Couleurs des zones de danger selon la sévérité (0-5)
+// Couleurs des zones de danger selon la sévérité (1-5)
 const getHazardColors = (severity: number) => {
     switch (severity) {
-        case 0:
-            return {
-                stroke: "rgba(134, 239, 172, 0.9)",
-                fill: "rgba(134, 239, 172, 0.3)",
-            }; // vert très clair
         case 1:
             return {
                 stroke: "rgba(34, 197, 94, 0.9)",
                 fill: "rgba(34, 197, 94, 0.3)",
-            }; // vert
+            }; // vert - zone sécuritaire
         case 2:
             return {
-                stroke: "rgba(22, 163, 74, 0.9)",
-                fill: "rgba(22, 163, 74, 0.3)",
-            }; // vert foncé
+                stroke: "rgba(234, 179, 8, 0.9)",
+                fill: "rgba(234, 179, 8, 0.3)",
+            }; // jaune - zone moins sécuritaire
         case 3:
+            return {
+                stroke: "rgba(251, 146, 60, 0.9)",
+                fill: "rgba(251, 146, 60, 0.3)",
+            }; // jaune-orange - zone légèrement dangereuse
+        case 4:
             return {
                 stroke: "rgba(249, 115, 22, 0.9)",
                 fill: "rgba(249, 115, 22, 0.3)",
-            }; // orange
-        case 4:
-            return {
-                stroke: "rgba(234, 88, 12, 0.9)",
-                fill: "rgba(234, 88, 12, 0.3)",
-            }; // orange-rouge
+            }; // orange-rouge - zone moyennement dangereuse
         case 5:
         default:
             return {
                 stroke: "rgba(185, 28, 28, 0.9)",
                 fill: "rgba(185, 28, 28, 0.3)",
-            }; // rouge foncé
+            }; // rouge - zone très dangereuse
+    }
+};
+
+// Nom des zones de danger selon la sévérité (1-5)
+const getHazardName = (severity: number): string => {
+    switch (severity) {
+        case 1:
+            return "Zone sécuritaire";
+        case 2:
+            return "Zone moins sécuritaire";
+        case 3:
+            return "Zone légèrement dangereuse";
+        case 4:
+            return "Zone moyennement dangereuse";
+        case 5:
+        default:
+            return "Zone très dangereuse";
     }
 };
 
@@ -84,6 +97,9 @@ export default function Map() {
     const mapData = useQuery(api.map.getMapData, {});
     const reportPlace = useMutation(api.reports.reportPlace);
     const reportHazard = useMutation(api.reports.reportHazard);
+    const updateHazard = useMutation(api.reports.updateHazard);
+    const deleteHazard = useMutation(api.reports.deleteHazard);
+    const deletePlaceMutation = useMutation(api.reports.deletePlace);
 
     //Id per device
     const [reporterId] = useState(
@@ -96,9 +112,17 @@ export default function Map() {
     const [selectedLng, setSelectedLng] = useState<number | null>(null);
     const [isSheetVisible, setIsSheetVisible] = useState(false);
     const [selectedType, setSelectedType] = useState<PlaceType | null>(null);
-    const [selectedSeverity, setSelectedSeverity] = useState(3);
+    const [selectedSeverity, setSelectedSeverity] = useState(5);
     const [radiusMeters, setRadiusMeters] = useState(50);
     const [sliderKey, setSliderKey] = useState(0); // Force re-render des sliders
+    const [editingHazard, setEditingHazard] = useState<{
+        id: string;
+        severity: number;
+        radiusMeters: number;
+    } | null>(null);
+    const [selectedHazardId, setSelectedHazardId] = useState<string | null>(
+        null
+    );
 
     const typeLabel = useMemo(() => {
         if (selectedType === "food") return "Nourriture / Eau";
@@ -175,8 +199,9 @@ export default function Map() {
         setSelectedLat(null);
         setSelectedLng(null);
         setSelectedType(null);
-        setSelectedSeverity(3);
+        setSelectedSeverity(5);
         setRadiusMeters(50);
+        setEditingHazard(null);
         setSliderKey((k) => k + 1); // Force re-render des sliders
     };
 
@@ -211,7 +236,15 @@ export default function Map() {
         });
 
         try {
-            if (selectedType === "danger") {
+            if (editingHazard) {
+                // Modification d'une zone existante
+                await updateHazard({
+                    hazardId: editingHazard.id as Id<"hazards">,
+                    severity: selectedSeverity,
+                    radiusMeters,
+                });
+            } else if (selectedType === "danger") {
+                // Création d'une nouvelle zone
                 await reportHazard({
                     latitude: finalLat,
                     longitude: finalLng,
@@ -220,6 +253,7 @@ export default function Map() {
                     reporterId,
                 });
             } else {
+                // Création d'un nouveau point
                 await reportPlace({
                     type: selectedType,
                     latitude: finalLat,
@@ -235,8 +269,9 @@ export default function Map() {
             setSelectedLat(null);
             setSelectedLng(null);
             setSelectedType(null);
-            setSelectedSeverity(3);
+            setSelectedSeverity(5);
             setRadiusMeters(50);
+            setEditingHazard(null);
             setSliderKey((k) => k + 1); // Force re-render des sliders
         }
     };
@@ -253,29 +288,135 @@ export default function Map() {
                 showsMyLocationButton={true}
                 initialRegion={region}
                 onRegionChangeComplete={(r) => setRegion(r)}
+                onPress={(e) => {
+                    // Vérifier si le clic est dans une zone de danger ou sur un point
+                    const clickLat = e.nativeEvent.coordinate.latitude;
+                    const clickLng = e.nativeEvent.coordinate.longitude;
+
+                    // Fonction pour calculer la distance en mètres (formule de Haversine)
+                    const distanceInMeters = (
+                        lat1: number,
+                        lon1: number,
+                        lat2: number,
+                        lon2: number
+                    ): number => {
+                        const R = 6371e3; // Rayon de la Terre en mètres
+                        const φ1 = (lat1 * Math.PI) / 180;
+                        const φ2 = (lat2 * Math.PI) / 180;
+                        const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+                        const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+                        const a =
+                            Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                            Math.cos(φ1) *
+                                Math.cos(φ2) *
+                                Math.sin(Δλ / 2) *
+                                Math.sin(Δλ / 2);
+                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+                        return R * c;
+                    };
+
+                    // Vérifier d'abord les zones de danger (cercles)
+                    for (const h of hazards) {
+                        const distance = distanceInMeters(
+                            clickLat,
+                            clickLng,
+                            h.latitude,
+                            h.longitude
+                        );
+
+                        if (distance <= h.radiusMeters) {
+                            setSelectedHazardId(h._id);
+                            return;
+                        }
+                    }
+
+                    // Vérifier ensuite les points (rayon de 20m pour faciliter le clic)
+                    for (const p of places) {
+                        const distance = distanceInMeters(
+                            clickLat,
+                            clickLng,
+                            p.latitude,
+                            p.longitude
+                        );
+
+                        if (distance <= 20) {
+                            setSelectedHazardId(p._id);
+                            return;
+                        }
+                    }
+
+                    // Si on clique ailleurs, ne rien faire (garder les boutons si déjà affichés)
+                }}
             >
                 {/* Marker utilisateur perso */}
                 {location && <CurrentUserMarker location={location} />}
 
                 {/* Points de ravitaillement confirmés */}
                 {places.map((p) => (
-                    <PlaceMarker key={p._id} place={p} />
+                    <PlaceMarker
+                        key={p._id}
+                        place={p}
+                        onDelete={() => {
+                            setSelectedHazardId(p._id);
+                        }}
+                    />
                 ))}
 
                 {/* Zones de danger confirmées */}
                 {hazards.map((h) => {
                     const colors = getHazardColors(h.severity);
+                    const hazardName = getHazardName(h.severity);
+                    // Calculer la taille du marker invisible pour couvrir tout le cercle
+                    // On utilise une taille fixe assez grande pour être cliquable partout
+                    // Le marker sera invisible mais cliquable sur une grande zone
+                    const markerSize = 150; // Taille fixe assez grande pour couvrir la plupart des cercles
+                    
                     return (
-                        <Circle
-                            key={h._id}
-                            center={{
-                                latitude: h.latitude,
-                                longitude: h.longitude,
-                            }}
-                            radius={h.radiusMeters}
-                            strokeColor={colors.stroke}
-                            fillColor={colors.fill}
-                        />
+                        <React.Fragment key={h._id}>
+                            <Circle
+                                center={{
+                                    latitude: h.latitude,
+                                    longitude: h.longitude,
+                                }}
+                                radius={h.radiusMeters}
+                                strokeColor={colors.stroke}
+                                fillColor={colors.fill}
+                            />
+                            <Marker
+                                coordinate={{
+                                    latitude: h.latitude,
+                                    longitude: h.longitude,
+                                }}
+                                anchor={{ x: 0.5, y: 0.5 }}
+                                tracksViewChanges={false}
+                            >
+                                <View 
+                                    style={[
+                                        styles.invisibleMarker, 
+                                        { 
+                                            width: markerSize, 
+                                            height: markerSize,
+                                        }
+                                    ]} 
+                                    pointerEvents="box-none"
+                                />
+                                <Callout tooltip={false}>
+                                    <View style={styles.calloutContainer}>
+                                        <Text style={styles.calloutTitle}>
+                                            {hazardName}
+                                        </Text>
+                                        <Text style={styles.calloutDescription}>
+                                            Créé le:{" "}
+                                            {new Date(
+                                                h.createAt
+                                            ).toLocaleString()}
+                                        </Text>
+                                    </View>
+                                </Callout>
+                            </Marker>
+                        </React.Fragment>
                     );
                 })}
             </MapView>
@@ -287,8 +428,8 @@ export default function Map() {
                 </View>
             )}
 
-            {/* Bouton Ajouter un emplacement */}
-            {!isAdding && !isSheetVisible && (
+            {/* Bouton Ajouter un emplacement ou Modifier/Supprimer */}
+            {!isAdding && !isSheetVisible && !selectedHazardId && (
                 <View style={styles.addButtonContainer}>
                     <TouchableOpacity
                         style={styles.addButton}
@@ -300,42 +441,166 @@ export default function Map() {
                     </TouchableOpacity>
                 </View>
             )}
+            {selectedHazardId && !isSheetVisible && (
+                <View style={styles.addButtonContainer}>
+                    <View style={styles.actionButtonsRow}>
+                        {(() => {
+                            const hazard = hazards.find(
+                                (h) => h._id === selectedHazardId
+                            );
+                            const place = places.find(
+                                (p) => p._id === selectedHazardId
+                            );
+
+                            if (hazard) {
+                                return (
+                                    <>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.actionButton,
+                                                styles.modifyButton,
+                                            ]}
+                                            onPress={() => {
+                                                setEditingHazard({
+                                                    id: hazard._id,
+                                                    severity: hazard.severity,
+                                                    radiusMeters:
+                                                        hazard.radiusMeters,
+                                                });
+                                                setSelectedSeverity(
+                                                    hazard.severity
+                                                );
+                                                setRadiusMeters(
+                                                    hazard.radiusMeters
+                                                );
+                                                setSelectedType("danger");
+                                                setIsSheetVisible(true);
+                                                setSelectedHazardId(null);
+                                            }}
+                                        >
+                                            <Text
+                                                style={styles.actionButtonText}
+                                            >
+                                                Modifier
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.actionButton,
+                                                styles.deleteButton,
+                                            ]}
+                                            onPress={async () => {
+                                                try {
+                                                    await deleteHazard({
+                                                        hazardId:
+                                                            selectedHazardId as Id<"hazards">,
+                                                    });
+                                                    setSelectedHazardId(null);
+                                                } catch (e) {
+                                                    console.error(
+                                                        "Erreur suppression:",
+                                                        e
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <Text
+                                                style={styles.actionButtonText}
+                                            >
+                                                Supprimer
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                );
+                            }
+
+                            if (place) {
+                                return (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.actionButton,
+                                            styles.deleteButton,
+                                        ]}
+                                        onPress={async () => {
+                                            try {
+                                                await deletePlaceMutation({
+                                                    placeId:
+                                                        selectedHazardId as Id<"places">,
+                                                });
+                                                setSelectedHazardId(null);
+                                            } catch (e) {
+                                                console.error(
+                                                    "Erreur suppression:",
+                                                    e
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <Text style={styles.actionButtonText}>
+                                            Supprimer
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            }
+
+                            return null;
+                        })()}
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.cancelButton]}
+                            onPress={() => {
+                                setSelectedHazardId(null);
+                            }}
+                        >
+                            <Text style={styles.actionButtonText}>Annuler</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
 
             {/* Bottom sheet pour choisir type + sliders */}
             {isSheetVisible && (
                 <View style={styles.bottomSheet}>
-                    <Text style={styles.sheetTitle}>Nouveau point</Text>
-                    <Text style={styles.sheetSubtitle}>
-                        Type sélectionné : {typeLabel}
+                    <Text style={styles.sheetTitle}>
+                        {editingHazard ? "Modifier la zone" : "Nouveau point"}
                     </Text>
+                    {!editingHazard && (
+                        <>
+                            <Text style={styles.sheetSubtitle}>
+                                Type sélectionné : {typeLabel}
+                            </Text>
 
-                    {/* Scroll horizontal des types */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.typeScroll}
-                    >
-                        <TypeChip
-                            label="Abri"
-                            selected={selectedType === "shelter"}
-                            onPress={() => setSelectedType("shelter")}
-                        />
-                        <TypeChip
-                            label="Nourriture / Eau"
-                            selected={selectedType === "food"}
-                            onPress={() => setSelectedType("food")}
-                        />
-                        <TypeChip
-                            label="Médicaments"
-                            selected={selectedType === "meds"}
-                            onPress={() => setSelectedType("meds")}
-                        />
-                        <TypeChip
-                            label="Zone de danger"
-                            selected={selectedType === "danger"}
-                            onPress={() => setSelectedType("danger")}
-                        />
-                    </ScrollView>
+                            {/* Scroll horizontal des types */}
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={styles.typeScroll}
+                            >
+                                <TypeChip
+                                    label="Abri"
+                                    selected={selectedType === "shelter"}
+                                    onPress={() => setSelectedType("shelter")}
+                                />
+                                <TypeChip
+                                    label="Nourriture / Eau"
+                                    selected={selectedType === "food"}
+                                    onPress={() => setSelectedType("food")}
+                                />
+                                <TypeChip
+                                    label="Médicaments"
+                                    selected={selectedType === "meds"}
+                                    onPress={() => setSelectedType("meds")}
+                                />
+                                <TypeChip
+                                    label="Zone de danger"
+                                    selected={selectedType === "danger"}
+                                    onPress={() => {
+                                        setSelectedType("danger");
+                                        setSelectedSeverity(5);
+                                    }}
+                                />
+                            </ScrollView>
+                        </>
+                    )}
 
                     {/* Sliders seulement pour zone de danger */}
                     {selectedType === "danger" && (
@@ -348,7 +613,7 @@ export default function Map() {
                                 <Slider
                                     key={`severity-${sliderKey}`}
                                     style={{ width: "100%", height: 40 }}
-                                    minimumValue={0}
+                                    minimumValue={1}
                                     maximumValue={5}
                                     step={1}
                                     value={selectedSeverity}
@@ -358,6 +623,9 @@ export default function Map() {
                                     minimumTrackTintColor="#ff4444"
                                     maximumTrackTintColor="#ccc"
                                 />
+                                <Text style={styles.hazardNameText}>
+                                    {getHazardName(selectedSeverity)}
+                                </Text>
                             </View>
 
                             <View style={styles.sliderBlock}>
@@ -402,6 +670,7 @@ export default function Map() {
                     </View>
                 </View>
             )}
+
         </View>
     );
 }
@@ -582,5 +851,83 @@ const styles = StyleSheet.create({
     sheetConfirmText: {
         color: "white",
         fontWeight: "600",
+    },
+    hazardNameText: {
+        fontSize: 12,
+        color: "#6b7280",
+        marginTop: 4,
+        fontStyle: "italic",
+    },
+    calloutContainer: {
+        padding: 8,
+        minWidth: 200,
+    },
+    calloutTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        marginBottom: 4,
+        color: "#111827",
+    },
+    calloutDescription: {
+        fontSize: 12,
+        color: "#6b7280",
+        marginBottom: 8,
+    },
+    calloutButtons: {
+        flexDirection: "row",
+        gap: 8,
+        marginTop: 4,
+    },
+    calloutButton: {
+        flex: 1,
+        backgroundColor: "#111827",
+        borderRadius: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        minWidth: 70,
+    },
+    calloutButtonText: {
+        color: "white",
+        fontWeight: "600",
+        fontSize: 14,
+        textAlign: "center",
+    },
+    calloutButtonDelete: {
+        backgroundColor: "#dc2626",
+        minWidth: 70,
+    },
+    calloutButtonTextDelete: {
+        color: "white",
+    },
+    invisibleMarker: {
+        width: 40,
+        height: 40,
+        opacity: 0,
+        backgroundColor: "transparent",
+    },
+    actionButtonsRow: {
+        flexDirection: "row",
+        gap: 8,
+    },
+    actionButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 999,
+        minWidth: 80,
+    },
+    modifyButton: {
+        backgroundColor: "#111827",
+    },
+    deleteButton: {
+        backgroundColor: "#dc2626",
+    },
+    cancelButton: {
+        backgroundColor: "#6b7280",
+    },
+    actionButtonText: {
+        color: "white",
+        fontWeight: "600",
+        fontSize: 14,
+        textAlign: "center",
     },
 });
