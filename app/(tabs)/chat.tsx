@@ -1,9 +1,11 @@
-// app/(tabs)/chat.tsx  (camera + chat, sleek UI + PNG icons)
+// app/(tabs)/chat.tsx
 
-import { CameraView, useCameraPermissions } from "expo-camera";
-import React, { useRef, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { useAction } from "convex/react";
+import React, { useState } from "react";
 import {
   Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,12 +15,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const CameraPng = require("../../assets/icons/camera.png");
+// --- Assets ---
 const SendPng = require("../../assets/icons/send.png");
-const FlipPng = require("../../assets/icons/flip.png");
+const BgImg = require("../../assets/icons/greytechbackground.jpg");
 
 type Sender = "user" | "bot";
 
@@ -29,11 +30,7 @@ type Message = {
   imageUri?: string;
 };
 
-export default function CameraScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [isFront, setIsFront] = useState(false);
-  const cameraRef = useRef<CameraView | null>(null);
-
+export default function ChatScreen() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { id: "1", from: "user", text: "c'est un zombie ??" },
@@ -50,23 +47,19 @@ export default function CameraScreen() {
 
   const [isBotThinking, setIsBotThinking] = useState(false);
 
-  // Use Convex action instead of fetch
+  // Convex action pour appeler l’IA
   const sendMessageAction = useAction(api.chat.sendMessage);
 
   async function getBotReply(userText: string): Promise<string> {
-    try {
-      const response = await sendMessageAction({ message: userText });
-      return response.reply;
-    } catch (err) {
-      console.warn("Erreur IA Convex", err);
-      throw err;
-    }
+    const response = await sendMessageAction({ message: userText });
+    return response.reply;
   }
 
-  const handleSend = async () => {
+  const handleSendText = async () => {
     if (!message.trim() || isBotThinking) return;
 
     const userText = message.trim();
+
     const userMsg: Message = {
       id: Date.now().toString(),
       from: "user",
@@ -105,252 +98,217 @@ export default function CameraScreen() {
     }
   };
 
-  const handleTakePicture = async () => {
-    try {
-      if (!cameraRef.current) return;
-      const photo = await cameraRef.current.takePictureAsync();
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          from: "user",
-          imageUri: photo.uri,
-        },
-      ]);
-    } catch (e) {
-      console.warn("Erreur prise de photo", e);
-    }
-  };
-
-  if (!permission)
-    return (
-      <View style={styles.center}>
-        <Text style={styles.text}>Chargement...</Text>
-      </View>
-    );
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.text}>
-          L&apos;application a besoin d&apos;accéder à la caméra.
-        </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.button}>
-          <Text style={styles.buttonText}>Autoriser</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.root}>
-      <View style={styles.cameraWrapper}>
-        <CameraView
-          ref={cameraRef}
-          style={StyleSheet.absoluteFill}
-          facing={isFront ? "front" : "back"}
-        />
-        <View style={styles.cameraOverlay} />
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={styles.iconButtonGhost}
-            onPress={() => setIsFront(!isFront)}
-          >
-            <Image source={FlipPng} style={styles.iconSmall} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.chatContainer}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={80}
-      >
-        <ScrollView
-          style={styles.messages}
-          contentContainerStyle={{ paddingVertical: 12 }}
+    <ImageBackground source={BgImg} style={styles.bg} resizeMode="cover">
+      <SafeAreaView style={styles.safe}>
+        <KeyboardAvoidingView
+          style={styles.chatWrapper}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={80}
         >
-          {messages.map((m) => (
-            <View
-              key={m.id}
-              style={[
-                styles.bubble,
-                m.from === "user" ? styles.userBubble : styles.botBubble,
-              ]}
+          <View style={styles.chatCard}>
+            <ScrollView
+              style={styles.messages}
+              contentContainerStyle={{
+                paddingVertical: 16,
+                paddingHorizontal: 4,
+              }}
             >
-              {m.imageUri && (
-                <Image
-                  source={{ uri: m.imageUri }}
-                  style={styles.imageMessage}
-                />
-              )}
-
-              {m.text && (
-                <Text
+              {messages.map((m) => (
+                <View
+                  key={m.id}
                   style={[
-                    styles.bubbleText,
-                    m.from === "user" ? styles.userText : styles.botText,
+                    styles.bubble,
+                    m.from === "user" ? styles.userBubble : styles.botBubble,
                   ]}
                 >
-                  {m.text}
-                </Text>
+                  {m.imageUri && (
+                    <Image
+                      source={{ uri: m.imageUri }}
+                      style={styles.imageMessage}
+                    />
+                  )}
+
+                  {m.text && (
+                    <Text
+                      style={[
+                        styles.bubbleText,
+                        m.from === "user" ? styles.userText : styles.botText,
+                      ]}
+                    >
+                      {m.text}
+                    </Text>
+                  )}
+                </View>
+              ))}
+
+              {isBotThinking && (
+                <View
+                  style={[
+                    styles.bubble,
+                    styles.botBubble,
+                    styles.thinkingBubble,
+                  ]}
+                >
+                  <Text style={[styles.bubbleText, styles.botText]}>
+                    Analyse en cours…
+                  </Text>
+                </View>
               )}
+            </ScrollView>
+
+            {/* Input row */}
+            <View style={styles.inputRow}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Comment puis-je t'aider ?"
+                  placeholderTextColor="#9ca3af"
+                  value={message}
+                  onChangeText={setMessage}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.sendBtn,
+                  isBotThinking && styles.sendBtnDisabled,
+                ]}
+                onPress={handleSendText}
+                disabled={isBotThinking}
+              >
+                <Image source={SendPng} style={styles.sendIcon} />
+              </TouchableOpacity>
             </View>
-          ))}
-
-          {isBotThinking && (
-            <View style={[styles.bubble, styles.botBubble]}>
-              <Text style={[styles.bubbleText, styles.botText]}>
-                Analyse en cours...
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-
-        <View style={styles.inputRow}>
-          <TouchableOpacity
-            style={styles.cameraBtn}
-            onPress={handleTakePicture}
-          >
-            <Image source={CameraPng} style={styles.iconSmall} />
-          </TouchableOpacity>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Comment puis-je t'aider ?"
-            placeholderTextColor="#9ca3af"
-            value={message}
-            onChangeText={setMessage}
-          />
-
-          <TouchableOpacity
-            style={styles.sendBtn}
-            onPress={handleSend}
-            disabled={isBotThinking}
-          >
-            <Image source={SendPng} style={styles.sendIcon} />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
+/* ------- STYLES ------- */
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#020617" },
-  center: {
+  // background image container
+  bg: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#000",
+    backgroundColor: "#0e0e10", // fallback behind the image
   },
-  text: { color: "white", marginBottom: 10 },
-  button: {
-    backgroundColor: "white",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+  safe: {
+    flex: 1,
+    paddingTop: 6,
   },
-  buttonText: { color: "black", fontWeight: "bold" },
-  cameraWrapper: {
-    height: "25%",
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: "black",
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  cameraOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 60,
-    backgroundColor: "rgba(15,23,42,0.6)",
-  },
-  controls: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  iconButtonGhost: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    backgroundColor: "rgba(15,23,42,0.75)",
-    borderWidth: 1,
-    borderColor: "#4b5563",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconSmall: { width: 20, height: 20, resizeMode: "contain" },
-  chatContainer: {
+
+  // chat container
+  chatWrapper: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  messages: { flex: 1 },
+
+  chatCard: {
+    flex: 1,
+    borderRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+
+    backgroundColor: "rgba(9, 9, 12, 0.78)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+  },
+
+  messages: {
+    flex: 1,
+  },
+
+  // chat bubbles (more minimal / less cute)
   bubble: {
-    maxWidth: "80%",
-    padding: 12,
-    borderRadius: 18,
-    marginVertical: 6,
-    gap: 6,
+    maxWidth: "88%",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginVertical: 4,
   },
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#ef4444",
+    backgroundColor: "#b91c1c", // deep red
+    borderRadius: 14,
     borderBottomRightRadius: 6,
+    borderWidth: 1,
+    borderColor: "#fecaca",
   },
   botBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "#0f172a",
-    borderWidth: 1,
-    borderColor: "#1f2937",
+    backgroundColor: "rgba(15,23,42,0.96)", // dark slate
+    borderRadius: 14,
     borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.45)",
   },
-  bubbleText: { fontSize: 14, lineHeight: 20 },
-  userText: { color: "white", fontWeight: "500" },
-  botText: { color: "#e5e7eb" },
-  imageMessage: { width: 180, height: 120, borderRadius: 16 },
+  thinkingBubble: {
+    opacity: 0.8,
+  },
+
+  bubbleText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  userText: {
+    color: "white",
+    fontWeight: "500",
+  },
+  botText: {
+    color: "#e5e7eb",
+  },
+
+  imageMessage: {
+    width: 190,
+    height: 130,
+    borderRadius: 12,
+  },
+
+  // input bar
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    gap: 8,
+    paddingTop: 10,
+    gap: 10,
   },
-  cameraBtn: {
-    width: 40,
-    height: 40,
+  inputWrapper: {
+    flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#374151",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#020617",
+    borderColor: "rgba(148,163,184,0.4)",
+    backgroundColor: "rgba(15,23,42,0.92)",
+    paddingHorizontal: 10,
   },
   input: {
     flex: 1,
-    backgroundColor: "#020617",
-    borderColor: "#374151",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     color: "white",
     fontSize: 14,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     borderRadius: 999,
-    backgroundColor: "#ef4444",
+    backgroundColor: "#a01111ff",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#ffffff",
+    shadowOpacity: 0.0,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  sendBtnDisabled: {
+    opacity: 0.45,
   },
   sendIcon: {
     width: 20,
@@ -359,4 +317,3 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
 });
-
