@@ -189,12 +189,15 @@ export default function OnboardingScreen() {
           Scanne ton QR code pour enregistrer ton ID
         </Text>
 
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleAskPermissionAndScan}
-        >
-          <Text style={styles.primaryButtonText}>Scanner mon QR code</Text>
-        </TouchableOpacity>
+        {/* ✅ On n'affiche le bloc Scan QUE quand il n'y a pas encore d'utilisateur */}
+        {!currentId && (
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleAskPermissionAndScan}
+          >
+            <Text style={styles.primaryButtonText}>Scanner mon QR code</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[
@@ -221,7 +224,6 @@ export default function OnboardingScreen() {
           </Text>
         )}
 
-        {/* 🔽 Bloc "Changer d'utilisateur" pleine largeur, même taille que les autres */}
         {currentId && (
           <TouchableOpacity
             style={styles.changeUserButton}
@@ -261,7 +263,7 @@ const styles = StyleSheet.create({
   changeUserButton: {
     marginTop: 16,
     width: "100%",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#4b5563",
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   changeUserX: {
-    backgroundColor: "#cbd5e1",
+    backgroundColor: "#e5e7eb",
     width: 26,
     height: 26,
     borderRadius: 999,
@@ -296,6 +298,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 12,
+    width: "100%", // facultatif, mais pour être sûr qu'il prenne toute la largeur
   },
   primaryButtonText: {
     color: "#fff",
@@ -304,11 +307,12 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     marginTop: 4,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 10,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#ef4444",
+    width: "100%", // ✅ même largeur que "Changer d'utilisateur"
   },
   secondaryButtonDisabled: {
     borderColor: "#4b5563",
