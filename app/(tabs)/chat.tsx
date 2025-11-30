@@ -20,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // --- Assets ---
 const SendPng = require("../../assets/icons/send.png");
 const BgImg = require("../../assets/icons/greytechbackground.jpg");
+const LogoSK = require("../../assets/icons/logoSK.png");
 
 type Sender = "user" | "bot";
 
@@ -33,21 +34,18 @@ type Message = {
 export default function ChatScreen() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", from: "user", text: "c'est un zombie ??" },
+    { id: "1", from: "user", text: " " },
     {
       id: "2",
       from: "bot",
       text:
-        "La personne identifiée dans l'image est effectivement un zombie. " +
-        "La position de la caméra par rapport au zombie indique que vous êtes à environ 10 mètres de l'infecté. " +
-        "Votre localisation indique aussi que la zone sécuritaire la plus accessible est au nord-est. " +
-        "Je vous conseille de vous déplacer vers l'arrière à gauche pour y accéder.",
+        " " +
+        " ",
     },
   ]);
 
   const [isBotThinking, setIsBotThinking] = useState(false);
 
-  // Convex action pour appeler l’IA
   const sendMessageAction = useAction(api.chat.sendMessage);
 
   async function getBotReply(userText: string): Promise<string> {
@@ -114,45 +112,58 @@ export default function ChatScreen() {
                 paddingHorizontal: 4,
               }}
             >
-              {messages.map((m) => (
-                <View
-                  key={m.id}
-                  style={[
-                    styles.bubble,
-                    m.from === "user" ? styles.userBubble : styles.botBubble,
-                  ]}
-                >
-                  {m.imageUri && (
-                    <Image
-                      source={{ uri: m.imageUri }}
-                      style={styles.imageMessage}
-                    />
-                  )}
-
-                  {m.text && (
-                    <Text
-                      style={[
-                        styles.bubbleText,
-                        m.from === "user" ? styles.userText : styles.botText,
-                      ]}
-                    >
-                      {m.text}
-                    </Text>
-                  )}
-                </View>
-              ))}
+              {messages.map((m) =>
+                m.from === "bot" ? (
+                  <View key={m.id} style={styles.botRow}>
+                    <View style={styles.botBar} />
+                    <View style={[styles.bubble, styles.botBubble]}>
+                      {m.imageUri && (
+                        <Image
+                          source={{ uri: m.imageUri }}
+                          style={styles.imageMessage}
+                        />
+                      )}
+                      {m.text && (
+                        <Text style={[styles.bubbleText, styles.botText]}>
+                          {m.text}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    key={m.id}
+                    style={[styles.bubble, styles.userBubble]}
+                  >
+                    {m.imageUri && (
+                      <Image
+                        source={{ uri: m.imageUri }}
+                        style={styles.imageMessage}
+                      />
+                    )}
+                    {m.text && (
+                      <Text style={[styles.bubbleText, styles.userText]}>
+                        {m.text}
+                      </Text>
+                    )}
+                  </View>
+                )
+              )}
 
               {isBotThinking && (
-                <View
-                  style={[
-                    styles.bubble,
-                    styles.botBubble,
-                    styles.thinkingBubble,
-                  ]}
-                >
-                  <Text style={[styles.bubbleText, styles.botText]}>
-                    Analyse en cours…
-                  </Text>
+                <View style={styles.botRow}>
+                  <View style={styles.botBar} />
+                  <View
+                    style={[
+                      styles.bubble,
+                      styles.botBubble,
+                      styles.thinkingBubble,
+                    ]}
+                  >
+                    <Text style={[styles.bubbleText, styles.botText]}>
+                      Analyse en cours…
+                    </Text>
+                  </View>
                 </View>
               )}
             </ScrollView>
@@ -160,6 +171,8 @@ export default function ChatScreen() {
             {/* Input row */}
             <View style={styles.inputRow}>
               <View style={styles.inputWrapper}>
+                <Image source={LogoSK} style={styles.inputLogo} />
+
                 <TextInput
                   style={styles.input}
                   placeholder="Comment puis-je t'aider ?"
@@ -189,17 +202,15 @@ export default function ChatScreen() {
 
 /* ------- STYLES ------- */
 const styles = StyleSheet.create({
-  // background image container
   bg: {
     flex: 1,
-    backgroundColor: "#0e0e10", // fallback behind the image
+    backgroundColor: "#0e0e10",
   },
   safe: {
     flex: 1,
     paddingTop: 6,
   },
 
-  // chat container
   chatWrapper: {
     flex: 1,
     paddingHorizontal: 16,
@@ -228,7 +239,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // chat bubbles (more minimal / less cute)
   bubble: {
     maxWidth: "88%",
     paddingVertical: 8,
@@ -238,20 +248,35 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#b91c1c", // deep red
+    backgroundColor: "#D7263D",
     borderRadius: 14,
     borderBottomRightRadius: 6,
     borderWidth: 1,
+    marginVertical: 6,
     borderColor: "#fecaca",
   },
   botBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(15,23,42,0.96)", // dark slate
+    backgroundColor: "rgba(15,23,42,0.96)",
     borderRadius: 14,
     borderBottomLeftRadius: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.45)",
   },
+
+  botRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 6,
+  },
+  botBar: {
+    width: 3,
+    backgroundColor: "#D7263D",
+    borderRadius: 20,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+
   thinkingBubble: {
     opacity: 0.8,
   },
@@ -274,7 +299,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 
-  // input bar
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -283,29 +307,38 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.4)",
     backgroundColor: "rgba(15,23,42,0.92)",
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
+
+  inputLogo: {
+    width: 30,
+    height: 30,
+    marginRight: 8,
+    tintColor: "#D7263D", // enlève si tu veux garder les vraies couleurs
+    resizeMode: "contain",
+  },
+
   input: {
     flex: 1,
     paddingVertical: 8,
     color: "white",
     fontSize: 14,
+        height: 50
   },
+
   sendBtn: {
     width: 50,
     height: 50,
     borderRadius: 999,
-    backgroundColor: "#a01111ff",
+    backgroundColor: "#D7263D",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#ffffff",
-    shadowOpacity: 0.0,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
   },
   sendBtnDisabled: {
     opacity: 0.45,
