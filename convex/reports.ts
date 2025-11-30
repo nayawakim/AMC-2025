@@ -1,21 +1,16 @@
 import { v } from "convex/values";
-import { PLACE_TYPE_VALUES } from "../constants";
 import { mutation } from "./_generated/server";
 
-const placeTypeValidator = v.union(...PLACE_TYPE_VALUES.map(v.literal));
-
-const threshold = 1;
-
-function roundCoordinates(value: number) {
+function roundCoordinates(value: number){
     return Number(value.toFixed(3)); //100m de precision
 }
 
 export const reportPlace = mutation({
     args: {
-        type: placeTypeValidator,
+        type: v.string(),
         latitude: v.number(),
         longitude: v.number(),
-        reporterId: v.string(),
+        reporterId: v.id("users"),
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -31,16 +26,11 @@ export const reportPlace = mutation({
             reporterId: args.reporterId,
         });
 
-        const reports = await ctx.db
-            .query("placeReports")
-            .withIndex("by_cell", (q) =>
-                q.eq("cellLat", cellLat).eq("cellLong", cellLong)
-            )
-            .collect();
+        const reports = await ctx.db.query("placeReports").withIndex("by_cell", q => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
         const count = reports.length;
+        const threshold = 3;
 
-        const existingPlace = await ctx.db
-            .query("places")
+        const existingPlace = await ctx.db.query("places")
             .filter((q) =>
                 q.and(
                     q.eq(q.field("type"), args.type),
@@ -51,28 +41,15 @@ export const reportPlace = mutation({
                 )
             )
             .first();
-        if (count >= threshold && !existingPlace) {
-            console.log("BACKEND: CREATING OFFICIAL PLACE", {
-                count,
-                threshold,
-                type: args.type,
-                latitude: args.latitude,
-                longitude: args.longitude,
-            });
-            await ctx.db.insert("places", {
-                name: `${args.type} (confirmé)`,
-                type: args.type,
-                latitude: args.latitude,
-                longitude: args.longitude,
-                createdAt: Date.now(),
-            });
-        } else {
-            console.log("Place NOT created:", {
-                count,
-                threshold,
-                existingPlace: !!existingPlace,
-            });
-        }
+            if (count >= threshold && !existingPlace){
+                await ctx.db.insert("places", {
+                    name: `${args.type} (confirmé)`,
+                    type: args.type,
+                    latitude: args.latitude,
+                    longitude: args.longitude,
+                    createdAt: Date.now(),
+                });
+            }
     },
 });
 
@@ -82,7 +59,7 @@ export const reportHazard = mutation({
         longitude: v.number(),
         radiusMeters: v.number(),
         severity: v.number(),
-        reporterId: v.string(),
+        reporterId: v.id("users"),
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -98,16 +75,11 @@ export const reportHazard = mutation({
             reporterId: args.reporterId,
         });
 
-        const reports = await ctx.db
-            .query("hazardReports")
-            .withIndex("by_cell", (q) =>
-                q.eq("cellLat", cellLat).eq("cellLong", cellLong)
-            )
-            .collect();
+        const reports = await ctx.db.query("hazardReports").withIndex("by_cell", (q) => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
         const count = reports.length;
+        const threshold = 3;
 
-        const existingHazard = await ctx.db
-            .query("hazards")
+        const existingHazard = await ctx.db.query("hazards")
             .filter((q) =>
                 q.and(
                     q.gte(q.field("latitude"), cellLat - 0.001),

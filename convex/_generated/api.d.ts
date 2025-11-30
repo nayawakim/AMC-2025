@@ -9,7 +9,6 @@
  */
 
 import type * as map from "../map.js";
-import type * as places from "../places.js";
 import type * as reports from "../reports.js";
 
 import type {
@@ -20,7 +19,6 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   map: typeof map;
-  places: typeof places;
   reports: typeof reports;
 }>;
 

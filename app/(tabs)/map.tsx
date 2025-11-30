@@ -1,6 +1,5 @@
 import CurrentUserMarker from "@/components/map/CurrentUserMarker";
 import { offsetCoordinates } from "@/lib/utils";
-import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -89,8 +88,6 @@ export default function Map() {
         latitude: number;
         longitude: number;
     } | null>(null);
-
-    const [region, setRegion] = useState<Region | null>(null);
     const mapRef = useRef<MapView>(null);
 
     //Convex
@@ -143,18 +140,9 @@ export default function Map() {
             }
 
             const loc = await Location.getCurrentPositionAsync({});
-            const offset = offsetCoordinates(
-                loc.coords.latitude,
-                loc.coords.longitude
+            setLocation(
+                offsetCoordinates(loc.coords.latitude, loc.coords.longitude)
             );
-            setLocation(offset);
-
-            setRegion({
-                latitude: offset.latitude,
-                longitude: offset.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-            });
 
             // Watch position for updates
             Location.watchPositionAsync(
@@ -164,11 +152,12 @@ export default function Map() {
                     distanceInterval: 1, // Update every 1 meter
                 },
                 (newLocation) => {
-                    const off = offsetCoordinates(
-                        newLocation.coords.latitude,
-                        newLocation.coords.longitude
+                    setLocation(
+                        offsetCoordinates(
+                            newLocation.coords.latitude,
+                            newLocation.coords.longitude
+                        )
                     );
-                    setLocation(off);
                 }
             );
         })();
@@ -672,27 +661,6 @@ export default function Map() {
             )}
 
         </View>
-    );
-}
-
-type ChipProps = {
-    label: string;
-    selected: boolean;
-    onPress: () => void;
-};
-
-function TypeChip({ label, selected, onPress }: ChipProps) {
-    return (
-        <TouchableOpacity
-            onPress={onPress}
-            style={[styles.chip, selected && styles.chipSelected]}
-        >
-            <Text
-                style={[styles.chipText, selected && styles.chipTextSelected]}
-            >
-                {label}
-            </Text>
-        </TouchableOpacity>
     );
 }
 
