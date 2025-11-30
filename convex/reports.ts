@@ -10,7 +10,7 @@ export const reportPlace = mutation({
         type: v.string(),
         latitude: v.number(),
         longitude: v.number(),
-        reporterId: v.string(),
+        reporterId: v.string(), // Device ID string
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -65,7 +65,7 @@ export const reportHazard = mutation({
         longitude: v.number(),
         radiusMeters: v.number(),
         severity: v.number(),
-        reporterId: v.string(),
+        reporterId: v.string(), // Device ID string
     },
     handler: async (ctx, args) => {
         const cellLat = roundCoordinates(args.latitude);
@@ -88,7 +88,7 @@ export const reportHazard = mutation({
             )
             .collect();
         const count = reports.length;
-        const threshold = 3;
+        const threshold = 1; // Baissé à 1 pour faciliter les tests
 
         const existingHazard = await ctx.db
             .query("hazards")
@@ -102,14 +102,103 @@ export const reportHazard = mutation({
             )
             .first();
         if (count >= threshold && !existingHazard) {
+            // Nom de la zone selon le niveau de sévérité (1-5)
+            const getHazardName = (severity: number): string => {
+                switch (severity) {
+                    case 1:
+                        return "Zone sécuritaire";
+                    case 2:
+                        return "Zone moins sécuritaire";
+                    case 3:
+                        return "Zone légèrement dangereuse";
+                    case 4:
+                        return "Zone moyennement dangereuse";
+                    case 5:
+                    default:
+                        return "Zone très dangereuse";
+                }
+            };
+
+            console.log("BACKEND: CREATING OFFICIAL HAZARD", {
+                count,
+                threshold,
+                latitude: args.latitude,
+                longitude: args.longitude,
+                severity: args.severity,
+                radiusMeters: args.radiusMeters,
+            });
             await ctx.db.insert("hazards", {
-                name: "Zone de danger",
+                name: getHazardName(args.severity),
                 latitude: args.latitude,
                 longitude: args.longitude,
                 radiusMeters: args.radiusMeters,
                 severity: args.severity,
                 createAt: Date.now(),
             });
+        } else {
+            console.log("Hazard NOT created:", {
+                count,
+                threshold,
+                needsMoreReports: count < threshold,
+                existingHazard: !!existingHazard,
+                cellLat,
+                cellLong,
+                reason: existingHazard
+                    ? "Hazard already exists in this area"
+                    : `Need ${threshold - count} more report(s) to create hazard`,
+            });
         }
+    },
+});
+
+// Modifier une zone de danger
+export const updateHazard = mutation({
+    args: {
+        hazardId: v.id("hazards"),
+        severity: v.number(),
+        radiusMeters: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const getHazardName = (severity: number): string => {
+            switch (severity) {
+                case 1:
+                    return "Zone sécuritaire";
+                case 2:
+                    return "Zone moins sécuritaire";
+                case 3:
+                    return "Zone légèrement dangereuse";
+                case 4:
+                    return "Zone moyennement dangereuse";
+                case 5:
+                default:
+                    return "Zone très dangereuse";
+            }
+        };
+
+        await ctx.db.patch(args.hazardId, {
+            name: getHazardName(args.severity),
+            severity: args.severity,
+            radiusMeters: args.radiusMeters,
+        });
+    },
+});
+
+// Supprimer une zone de danger
+export const deleteHazard = mutation({
+    args: {
+        hazardId: v.id("hazards"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.hazardId);
+    },
+});
+
+// Supprimer un point
+export const deletePlace = mutation({
+    args: {
+        placeId: v.id("places"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.placeId);
     },
 });
