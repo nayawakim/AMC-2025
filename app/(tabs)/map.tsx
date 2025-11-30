@@ -1,9 +1,15 @@
 import CurrentUserMarker from "@/components/map/CurrentUserMarker";
+import InfectedUserMarker from "@/components/map/InfectedUserMarker";
+import OtherUserMarker from "@/components/map/OtherUserMarker";
 import { offsetCoordinates } from "@/lib/utils";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
+import { Accelerometer } from "expo-sensors";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+    Alert,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -93,16 +99,65 @@ export default function Map() {
 
     //Convex
     const mapData = useQuery(api.map.getMapData, {});
+    const activeUsers = useQuery(api.users.getActiveUsers, {});
+    const nearbyAlerts = useQuery(
+        api.alerts.getActiveAlertsNearby,
+        location
+            ? {
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                  radiusMeters: 50,
+              }
+            : "skip"
+    );
     const reportPlace = useMutation(api.reports.reportPlace);
     const reportHazard = useMutation(api.reports.reportHazard);
     const updateHazard = useMutation(api.reports.updateHazard);
     const deleteHazard = useMutation(api.reports.deleteHazard);
     const deletePlaceMutation = useMutation(api.reports.deletePlace);
+    const updateUserLocation = useMutation(api.users.updateUserLocation);
+    const createDangerAlert = useMutation(api.alerts.createDangerAlert);
 
-    //Id per device
-    const [reporterId] = useState(
-        () => "device-" + Math.random().toString(36).slice(2)
-    );
+    //Id per device - lié au QR code ID
+    const [reporterId, setReporterId] = useState<string | null>(null);
+
+    // Charger ou créer l'ID utilisateur au démarrage (QR code ID)
+    useEffect(() => {
+        (async () => {
+            const USER_ID_KEY = "user_device_id";
+            const QR_CODE_ID_KEY = "user_qr_code_id";
+            try {
+                // D'abord, vérifier si on a un QR code ID sauvegardé
+                let qrCodeId = await AsyncStorage.getItem(QR_CODE_ID_KEY);
+                
+                if (!qrCodeId) {
+                    // Si pas de QR code ID, vérifier dans la base de données locale
+                    const { getAllIds } = await import("@/lib/database");
+                    const savedIds = getAllIds();
+                    if (savedIds.length > 0) {
+                        qrCodeId = savedIds[0].id;
+                        await AsyncStorage.setItem(QR_CODE_ID_KEY, qrCodeId);
+                    }
+                }
+                
+                // Si toujours pas de QR code ID, utiliser le device ID comme fallback
+                if (!qrCodeId) {
+                    let userId = await AsyncStorage.getItem(USER_ID_KEY);
+                    if (!userId) {
+                        userId = "device-" + Math.random().toString(36).slice(2) + "-" + Date.now();
+                        await AsyncStorage.setItem(USER_ID_KEY, userId);
+                    }
+                    qrCodeId = userId;
+                }
+                
+                setReporterId(qrCodeId);
+            } catch (error) {
+                console.error("Erreur lors du chargement de l'ID utilisateur:", error);
+                // Fallback: générer un ID temporaire
+                setReporterId("device-" + Math.random().toString(36).slice(2) + "-" + Date.now());
+            }
+        })();
+    }, []);
 
     //UI ajout de points sur la carte
     const [isAdding, setIsAdding] = useState(false);
@@ -122,6 +177,11 @@ export default function Map() {
         null
     );
     const [region, setRegion] = useState<Region | null>(null);
+    
+    // États pour les alertes urgentes (modales personnalisées)
+    const [shakeAlertVisible, setShakeAlertVisible] = useState(false);
+    const [dangerAlertVisible, setDangerAlertVisible] = useState(false);
+    const [dangerAlertMessage, setDangerAlertMessage] = useState("");
 
     const typeLabel = useMemo(() => {
         if (selectedType === "food") return "Nourriture / Eau";
@@ -153,6 +213,16 @@ export default function Map() {
                 latitudeDelta: 0.005,
                 longitudeDelta: 0.005,
             });
+            // Mettre à jour la position initiale dans Convex
+            if (reporterId) {
+                updateUserLocation({
+                    userId: reporterId,
+                    latitude: offset.latitude,
+                    longitude: offset.longitude,
+                }).catch((err) => {
+                    console.warn("Erreur mise à jour position initiale:", err);
+                });
+            }
 
             // Watch position for updates
             Location.watchPositionAsync(
@@ -162,18 +232,163 @@ export default function Map() {
                     distanceInterval: 1, // Update every 1 meter
                 },
                 (newLocation) => {
-                    setLocation(
-                        offsetCoordinates(
-                            newLocation.coords.latitude,
-                            newLocation.coords.longitude
-                        )
+                    const offset = offsetCoordinates(
+                        newLocation.coords.latitude,
+                        newLocation.coords.longitude
                     );
+                    setLocation(offset);
+                    // Mettre à jour la position dans Convex
+                    if (reporterId) {
+                        updateUserLocation({
+                            userId: reporterId,
+                            latitude: offset.latitude,
+                            longitude: offset.longitude,
+                        }).catch((err) => {
+                            console.warn("Erreur mise à jour position:", err);
+                        });
+                    }
                 }
             );
         })();
-    }, []);
+    }, [reporterId, updateUserLocation]);
 
-    if (!location || !region || !mapData) {
+    // Détection du shake pour déclencher une alerte (nécessite 1 seconde de shake continu)
+    const shakeStartTimeRef = useRef<number | null>(null);
+    const isShakeDialogOpenRef = useRef<boolean>(false);
+    const lastShakeAlertTimeRef = useRef<number>(0);
+    const SHAKE_COOLDOWN = 5000; // 5 secondes entre les pop-ups de shake
+
+    useEffect(() => {
+        let subscription: { remove: () => void } | null = null;
+        const SHAKE_THRESHOLD = 1.5; // Seuil d'accélération pour détecter un shake
+        const SHAKE_DURATION_REQUIRED = 1000; // 1 seconde de shake continu requis
+
+        const handleShake = () => {
+            const now = Date.now();
+            
+            // Vérifier le cooldown
+            if (now - lastShakeAlertTimeRef.current < SHAKE_COOLDOWN) {
+                return; // Trop tôt depuis le dernier pop-up
+            }
+
+            // Vérifier qu'un pop-up n'est pas déjà ouvert
+            if (isShakeDialogOpenRef.current) {
+                return;
+            }
+
+            lastShakeAlertTimeRef.current = now;
+            isShakeDialogOpenRef.current = true;
+
+            // Afficher la modale d'alerte rouge personnalisée
+            setShakeAlertVisible(true);
+        };
+
+        (async () => {
+            // Démarrer l'accéléromètre
+            Accelerometer.setUpdateInterval(100); // Mise à jour toutes les 100ms
+
+            let lastX = 0;
+            let lastY = 0;
+            let lastZ = 0;
+
+            subscription = Accelerometer.addListener(({ x, y, z }) => {
+                // Calculer la différence d'accélération
+                const deltaX = Math.abs(x - lastX);
+                const deltaY = Math.abs(y - lastY);
+                const deltaZ = Math.abs(z - lastZ);
+
+                // Vérifier si c'est un shake
+                const isShaking =
+                    deltaX > SHAKE_THRESHOLD ||
+                    deltaY > SHAKE_THRESHOLD ||
+                    deltaZ > SHAKE_THRESHOLD;
+
+                const now = Date.now();
+
+                if (isShaking) {
+                    // Si c'est le début du shake, enregistrer le temps
+                    if (shakeStartTimeRef.current === null) {
+                        shakeStartTimeRef.current = now;
+                    } else {
+                        // Vérifier si on a atteint la durée requise (1 seconde)
+                        const shakeDuration = now - shakeStartTimeRef.current;
+                        if (shakeDuration >= SHAKE_DURATION_REQUIRED) {
+                            handleShake();
+                            // Réinitialiser après avoir déclenché
+                            shakeStartTimeRef.current = null;
+                        }
+                    }
+                } else {
+                    // Si le shake s'arrête, réinitialiser le compteur
+                    shakeStartTimeRef.current = null;
+                }
+
+                lastX = x;
+                lastY = y;
+                lastZ = z;
+            });
+        })();
+
+        return () => {
+            if (subscription) {
+                subscription.remove();
+            }
+        };
+    }, [location, reporterId, createDangerAlert]);
+
+    // Afficher les alertes reçues (une seule fois par alerte, un seul pop-up à la fois)
+    const shownAlertsRef = useRef<Set<string>>(new Set());
+    const isAlertDialogOpenRef = useRef<boolean>(false);
+    useEffect(() => {
+        // Ne pas afficher si un pop-up est déjà ouvert
+        if (isAlertDialogOpenRef.current) {
+            return;
+        }
+
+        if (nearbyAlerts && nearbyAlerts.length > 0) {
+            // Filtrer les alertes qui ne sont pas de l'utilisateur actuel
+            const otherAlerts = nearbyAlerts.filter(
+                (alert) => alert.reporterId !== reporterId
+            );
+
+            if (otherAlerts.length > 0) {
+                // Afficher l'alerte la plus proche qui n'a pas encore été affichée
+                const newAlerts = otherAlerts.filter(
+                    (alert) => !shownAlertsRef.current.has(alert._id as string)
+                );
+
+                if (newAlerts.length > 0) {
+                    const closestAlert = newAlerts.reduce((prev, curr) =>
+                        prev.distanceMeters < curr.distanceMeters ? prev : curr
+                    );
+
+                    // Marquer cette alerte comme affichée
+                    shownAlertsRef.current.add(closestAlert._id as string);
+                    isAlertDialogOpenRef.current = true;
+
+                    // Afficher la modale d'alerte rouge personnalisée
+                    setDangerAlertMessage(
+                        `Un danger a été signalé à ${closestAlert.distanceMeters}m de vous ! Fuyez immédiatement !`
+                    );
+                    setDangerAlertVisible(true);
+                }
+            }
+        }
+
+        // Nettoyer les alertes expirées de la liste des alertes affichées
+        if (nearbyAlerts) {
+            const activeAlertIds = new Set(
+                nearbyAlerts.map((a) => a._id as string)
+            );
+            shownAlertsRef.current.forEach((alertId) => {
+                if (!activeAlertIds.has(alertId)) {
+                    shownAlertsRef.current.delete(alertId);
+                }
+            });
+        }
+    }, [nearbyAlerts, reporterId]);
+
+    if (!location || !region || !mapData || !reporterId) {
         return (
             <View style={styles.center}>
                 <Text>Chargement de la carte...</Text>
@@ -233,6 +448,11 @@ export default function Map() {
             radiusMeters,
             reporterId,
         });
+
+        if (!reporterId) {
+            console.error("reporterId non disponible");
+            return;
+        }
 
         try {
             if (editingHazard) {
@@ -349,8 +569,37 @@ export default function Map() {
                     // Si on clique ailleurs, ne rien faire (garder les boutons si déjà affichés)
                 }}
             >
-                {/* Marker utilisateur perso */}
+                {/* Marker utilisateur perso (bleu) */}
                 {location && <CurrentUserMarker location={location} />}
+
+                {/* Autres utilisateurs connectés */}
+                {activeUsers &&
+                    activeUsers
+                        .filter((u) => u.userId !== reporterId)
+                        .map((user) => {
+                            // Afficher en rouge si infecté, sinon en vert
+                            if (user.isInfected) {
+                                return (
+                                    <InfectedUserMarker
+                                        key={user.userId}
+                                        location={{
+                                            latitude: user.latitude,
+                                            longitude: user.longitude,
+                                        }}
+                                    />
+                                );
+                            } else {
+                                return (
+                                    <OtherUserMarker
+                                        key={user.userId}
+                                        location={{
+                                            latitude: user.latitude,
+                                            longitude: user.longitude,
+                                        }}
+                                    />
+                                );
+                            }
+                        })}
 
                 {/* Points de ravitaillement confirmés */}
                 {places.map((p) => (
@@ -419,6 +668,129 @@ export default function Map() {
                     );
                 })}
             </MapView>
+
+            {/* Modale d'alerte shake (rouge) */}
+            <Modal
+                visible={shakeAlertVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => {
+                    setShakeAlertVisible(false);
+                    isShakeDialogOpenRef.current = false;
+                }}
+            >
+                <View style={styles.alertModalOverlay}>
+                    <View style={styles.alertModalContainer}>
+                        <View style={styles.alertModalHeader}>
+                            <Text style={styles.alertModalTitle}>
+                                ⚠️ DANGER IMMINENT
+                            </Text>
+                        </View>
+                        <View style={styles.alertModalBody}>
+                            <Text style={styles.alertModalText}>
+                                Voulez-vous signaler un danger imminent ? Une
+                                alerte sera envoyée à tous les utilisateurs dans
+                                un rayon de 50m.
+                            </Text>
+                        </View>
+                        <View style={styles.alertModalButtons}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.alertModalButton,
+                                    styles.alertModalButtonCancel,
+                                ]}
+                                onPress={() => {
+                                    setShakeAlertVisible(false);
+                                    isShakeDialogOpenRef.current = false;
+                                }}
+                            >
+                                <Text
+                                    style={styles.alertModalButtonTextCancel}
+                                >
+                                    Annuler
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.alertModalButton,
+                                    styles.alertModalButtonConfirm,
+                                ]}
+                                onPress={() => {
+                                    setShakeAlertVisible(false);
+                                    isShakeDialogOpenRef.current = false;
+                                    if (location && reporterId) {
+                                        createDangerAlert({
+                                            reporterId,
+                                            latitude: location.latitude,
+                                            longitude: location.longitude,
+                                        }).catch((err) => {
+                                            console.error(
+                                                "Erreur lors de la création de l'alerte:",
+                                                err
+                                            );
+                                            Alert.alert(
+                                                "Erreur",
+                                                "Impossible de créer l'alerte. Veuillez réessayer."
+                                            );
+                                        });
+                                    }
+                                }}
+                            >
+                                <Text
+                                    style={styles.alertModalButtonTextConfirm}
+                                >
+                                    Oui, signaler
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modale d'alerte danger reçu (rouge) */}
+            <Modal
+                visible={dangerAlertVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => {
+                    setDangerAlertVisible(false);
+                    isAlertDialogOpenRef.current = false;
+                }}
+            >
+                <View style={styles.alertModalOverlay}>
+                    <View style={styles.alertModalContainer}>
+                        <View style={styles.alertModalHeader}>
+                            <Text style={styles.alertModalTitle}>
+                                🚨 DANGER IMMINENT
+                            </Text>
+                        </View>
+                        <View style={styles.alertModalBody}>
+                            <Text style={styles.alertModalText}>
+                                {dangerAlertMessage}
+                            </Text>
+                        </View>
+                        <View style={styles.alertModalButtons}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.alertModalButton,
+                                    styles.alertModalButtonConfirm,
+                                    { flex: 1 },
+                                ]}
+                                onPress={() => {
+                                    setDangerAlertVisible(false);
+                                    isAlertDialogOpenRef.current = false;
+                                }}
+                            >
+                                <Text
+                                    style={styles.alertModalButtonTextConfirm}
+                                >
+                                    Compris
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Marqueur fixe au centre quand on ajoute */}
             {isAdding && (
@@ -773,23 +1145,24 @@ const styles = StyleSheet.create({
         paddingTop: 12,
         paddingHorizontal: 16,
         paddingBottom: Platform.OS === "ios" ? 32 : 16,
-        backgroundColor: "white",
+        backgroundColor: "#111827", // Noir
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         elevation: 10,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.3,
         shadowRadius: 6,
     },
     sheetTitle: {
         fontSize: 18,
         fontWeight: "700",
         marginBottom: 4,
+        color: "#ff4444", // Rouge
     },
     sheetSubtitle: {
         fontSize: 14,
-        color: "#6b7280",
+        color: "#9ca3af", // Gris clair
         marginBottom: 8,
     },
     typeScroll: {
@@ -800,15 +1173,16 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: "#d1d5db",
+        borderColor: "#4b5563", // Gris
         marginRight: 8,
+        backgroundColor: "transparent",
     },
     chipSelected: {
-        backgroundColor: "#111827",
-        borderColor: "#111827",
+        backgroundColor: "#dc2626", // Rouge
+        borderColor: "#dc2626",
     },
     chipText: {
-        color: "#4b5563",
+        color: "#9ca3af", // Gris clair
         fontSize: 14,
         fontWeight: "500",
     },
@@ -822,6 +1196,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "500",
         marginBottom: 4,
+        color: "#e5e7eb", // Gris très clair
     },
     sheetButtonsRow: {
         flexDirection: "row",
@@ -832,18 +1207,19 @@ const styles = StyleSheet.create({
         marginRight: 8,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: "#d1d5db",
+        borderColor: "#4b5563", // Gris
+        backgroundColor: "#374151", // Gris foncé
         alignItems: "center",
         paddingVertical: 10,
     },
     sheetCancelText: {
-        color: "#111827",
+        color: "#e5e7eb", // Gris très clair
         fontWeight: "500",
     },
     sheetConfirm: {
         flex: 1,
         borderRadius: 999,
-        backgroundColor: "#16a34a",
+        backgroundColor: "#dc2626", // Rouge
         alignItems: "center",
         paddingVertical: 10,
     },
@@ -853,7 +1229,7 @@ const styles = StyleSheet.create({
     },
     hazardNameText: {
         fontSize: 12,
-        color: "#6b7280",
+        color: "#9ca3af", // Gris clair
         marginTop: 4,
         fontStyle: "italic",
     },
@@ -928,5 +1304,79 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         fontSize: 14,
         textAlign: "center",
+    },
+    // Styles pour les modales d'alerte rouges
+    alertModalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    alertModalContainer: {
+        backgroundColor: "#dc2626", // Rouge
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 400,
+        overflow: "hidden",
+        elevation: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    alertModalHeader: {
+        backgroundColor: "#991b1b", // Rouge foncé
+        padding: 20,
+        borderBottomWidth: 2,
+        borderBottomColor: "#7f1d1d",
+    },
+    alertModalTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "white",
+        textAlign: "center",
+        letterSpacing: 1,
+    },
+    alertModalBody: {
+        padding: 24,
+    },
+    alertModalText: {
+        fontSize: 16,
+        color: "white",
+        textAlign: "center",
+        lineHeight: 24,
+        fontWeight: "500",
+    },
+    alertModalButtons: {
+        flexDirection: "row",
+        padding: 16,
+        gap: 12,
+        backgroundColor: "#991b1b", // Rouge foncé
+    },
+    alertModalButton: {
+        flex: 1,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    alertModalButtonCancel: {
+        backgroundColor: "#374151", // Gris foncé
+    },
+    alertModalButtonConfirm: {
+        backgroundColor: "#111827", // Noir
+    },
+    alertModalButtonTextCancel: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    alertModalButtonTextConfirm: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "700",
+        letterSpacing: 0.5,
     },
 });

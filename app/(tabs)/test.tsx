@@ -1,26 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import { api } from '@/convex/_generated/api';
 import {
-  View,
+  deleteId,
+  deleteScannedQRCode,
+  generateRandomId,
+  getAllIds,
+  getAllScannedQRCodes,
+  initDatabase,
+  QRCodeData,
+  saveId,
+  saveScannedQRCode,
+} from '@/lib/database';
+import { useMutation } from 'convex/react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  StyleSheet,
-  Modal,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import {
-  initDatabase,
-  saveId,
-  deleteId,
-  getAllIds,
-  generateRandomId,
-  saveScannedQRCode,
-  getAllScannedQRCodes,
-  deleteScannedQRCode,
-  QRCodeData,
-} from '@/lib/database';
 
 export default function TestScreen() {
   const [currentId, setCurrentId] = useState<string>('');
@@ -29,6 +31,7 @@ export default function TestScreen() {
   const [showScanner, setShowScanner] = useState(false);
   const [scannedQRCodes, setScannedQRCodes] = useState<QRCodeData[]>([]);
   const [permission, requestPermission] = useCameraPermissions();
+  const markUserAsInfected = useMutation(api.users.markUserAsInfected);
 
   useEffect(() => {
     // Initialize database on mount
@@ -52,7 +55,7 @@ export default function TestScreen() {
     setScannedQRCodes(codes);
   };
 
-  const handleSaveId = () => {
+  const handleSaveId = async () => {
     // Check if an ID already exists
     if (savedIds.length > 0) {
       setMessage({
@@ -75,6 +78,13 @@ export default function TestScreen() {
 
     if (result.success) {
       loadIds();
+      // Sauvegarder le QR code ID dans AsyncStorage pour l'utiliser dans map.tsx
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        await AsyncStorage.setItem('user_qr_code_id', newId);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde du QR code ID:', error);
+      }
     }
 
     // Clear message after 3 seconds
@@ -154,11 +164,18 @@ export default function TestScreen() {
 
       if (result.success) {
         loadScannedQRCodes();
+        
+        // Si la personne scannée est infectée, la marquer comme infectée dans Convex
+        if (qrData.infected) {
+          markUserAsInfected({ userId: qrData.id }).catch((err: unknown) => {
+            console.error("Erreur lors du marquage de l'utilisateur comme infecté:", err);
+          });
+        }
       }
 
       setTimeout(() => setMessage(null), 3000);
       setShowScanner(false);
-    } catch (error) {
+    } catch {
       setMessage({
         text: 'Invalid QR code! Must be valid JSON.',
         type: 'error',
