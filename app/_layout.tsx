@@ -3,13 +3,7 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
-import Constants from "expo-constants";
 import "./global.css";
-
-const convex = new ConvexReactClient(Constants.expoConfig?.extra?.EXPO_PUBLIC_CONVEX_URL || process.env.EXPO_PUBLIC_CONVEX_URL!, {
-  unsavedChangesWarning: false,
-});
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -30,7 +24,9 @@ if (!convexUrl) {
   );
 }
 
-const convex = new ConvexReactClient(convexUrl);
+const convex = new ConvexReactClient(convexUrl, {
+  unsavedChangesWarning: false,
+});
 
 export default function RootLayout() {
   return (
