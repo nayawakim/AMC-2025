@@ -77,7 +77,7 @@ export const reportHazard = mutation({
 
         const reports = await ctx.db.query("hazardReports").withIndex("by_cell", (q) => q.eq("cellLat", cellLat).eq("cellLong", cellLong)).collect();
         const count = reports.length;
-        const threshold = 3;
+        const threshold = 1; // Baissé à 1 pour faciliter les tests
 
         const existingHazard = await ctx.db.query("hazards")
             .filter((q) =>
@@ -127,7 +127,13 @@ export const reportHazard = mutation({
             console.log("Hazard NOT created:", {
                 count,
                 threshold,
+                needsMoreReports: count < threshold,
                 existingHazard: !!existingHazard,
+                cellLat,
+                cellLong,
+                reason: existingHazard 
+                    ? "Hazard already exists in this area" 
+                    : `Need ${threshold - count} more report(s) to create hazard`,
             });
         }
     },
