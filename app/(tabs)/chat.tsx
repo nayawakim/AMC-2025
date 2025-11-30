@@ -2,13 +2,11 @@
 
 import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Image,
   ImageBackground,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,7 +18,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // --- Assets ---
-const CameraPng = require("../../assets/icons/camera.png");
 const SendPng = require("../../assets/icons/send.png");
 const BgImg = require("../../assets/icons/greytechbackground.jpg");
 
@@ -33,10 +30,7 @@ type Message = {
   imageUri?: string;
 };
 
-export default function CameraScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView | null>(null);
-
+export default function ChatScreen() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { id: "1", from: "user", text: "c'est un zombie ??" },
@@ -51,11 +45,6 @@ export default function CameraScreen() {
     },
   ]);
 
-  // état pour la caméra plein écran
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [previewUri, setPreviewUri] = useState<string | null>(null);
-
-  // état IA
   const [isBotThinking, setIsBotThinking] = useState(false);
 
   // Convex action pour appeler l’IA
@@ -77,7 +66,6 @@ export default function CameraScreen() {
       text: userText,
     };
 
-    // ajoute le message user
     setMessages((prev) => [...prev, userMsg]);
     setMessage("");
 
@@ -110,69 +98,9 @@ export default function CameraScreen() {
     }
   };
 
-  const openCamera = () => {
-    setPreviewUri(null);
-    setIsCameraOpen(true);
-  };
-
-  const handleCapture = async () => {
-    try {
-      if (!cameraRef.current) return;
-      const photo = await cameraRef.current.takePictureAsync();
-      setPreviewUri(photo.uri);
-    } catch (e) {
-      console.warn("Erreur prise de photo", e);
-    }
-  };
-
-  const handleSendPreview = () => {
-    if (!previewUri) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        from: "user",
-        imageUri: previewUri,
-      },
-    ]);
-    setPreviewUri(null);
-    setIsCameraOpen(false);
-  };
-
-  const handleCloseCamera = () => {
-    setPreviewUri(null);
-    setIsCameraOpen(false);
-  };
-
-  // --- Permission states ---
-
-  if (!permission) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.text}>Chargement...</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.text}>
-          L'application a besoin d'accéder à la caméra.
-        </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.button}>
-          <Text style={styles.buttonText}>Autoriser</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // --- Main UI ---
-
   return (
     <ImageBackground source={BgImg} style={styles.bg} resizeMode="cover">
       <SafeAreaView style={styles.safe}>
-        {/* CHAT CARD ONLY */}
         <KeyboardAvoidingView
           style={styles.chatWrapper}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -181,7 +109,10 @@ export default function CameraScreen() {
           <View style={styles.chatCard}>
             <ScrollView
               style={styles.messages}
-              contentContainerStyle={{ paddingVertical: 16 }}
+              contentContainerStyle={{
+                paddingVertical: 16,
+                paddingHorizontal: 4,
+              }}
             >
               {messages.map((m) => (
                 <View
@@ -212,9 +143,15 @@ export default function CameraScreen() {
               ))}
 
               {isBotThinking && (
-                <View style={[styles.bubble, styles.botBubble]}>
+                <View
+                  style={[
+                    styles.bubble,
+                    styles.botBubble,
+                    styles.thinkingBubble,
+                  ]}
+                >
                   <Text style={[styles.bubbleText, styles.botText]}>
-                    Analyse en cours...
+                    Analyse en cours…
                   </Text>
                 </View>
               )}
@@ -222,10 +159,6 @@ export default function CameraScreen() {
 
             {/* Input row */}
             <View style={styles.inputRow}>
-              <TouchableOpacity style={styles.cameraBtn} onPress={openCamera}>
-                <Image source={CameraPng} style={styles.iconSmall} />
-              </TouchableOpacity>
-
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
@@ -237,7 +170,10 @@ export default function CameraScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.sendBtn}
+                style={[
+                  styles.sendBtn,
+                  isBotThinking && styles.sendBtnDisabled,
+                ]}
                 onPress={handleSendText}
                 disabled={isBotThinking}
               >
@@ -247,63 +183,6 @@ export default function CameraScreen() {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
-
-      {/* MODAL CAMÉRA PLEIN ÉCRAN */}
-      <Modal
-        visible={isCameraOpen}
-        animationType="slide"
-        presentationStyle="fullScreen"
-      >
-        <View style={styles.modalContainer}>
-          {previewUri ? (
-            <>
-              <Image source={{ uri: previewUri }} style={styles.previewImage} />
-              <View style={styles.modalButtonsRow}>
-                <TouchableOpacity
-                  style={styles.modalSecondaryButton}
-                  onPress={() => setPreviewUri(null)}
-                >
-                  <Text style={styles.modalSecondaryText}>Retake</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalPrimaryButton}
-                  onPress={handleSendPreview}
-                >
-                  <Text style={styles.modalPrimaryText}>Send</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={styles.modalCloseAbsolute}
-                onPress={handleCloseCamera}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <CameraView
-                ref={cameraRef}
-                style={styles.cameraFull}
-                facing="back"
-              />
-              <TouchableOpacity
-                style={styles.modalCloseAbsolute}
-                onPress={handleCloseCamera}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-              <View style={styles.modalBottomBar}>
-                <TouchableOpacity
-                  style={styles.shutterOuter}
-                  onPress={handleCapture}
-                >
-                  <View style={styles.shutterInner} />
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
-      </Modal>
     </ImageBackground>
   );
 }
@@ -320,32 +199,6 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
 
-  // generic loading / permission states
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#0e0e10",
-    paddingHorizontal: 24,
-  },
-  text: {
-    color: "white",
-    fontSize: 15,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: "white",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 999,
-  },
-  buttonText: {
-    color: "#0e0e10",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-
   // chat container
   chatWrapper: {
     flex: 1,
@@ -356,53 +209,60 @@ const styles = StyleSheet.create({
 
   chatCard: {
     flex: 1,
-    borderRadius: 30,
-    paddingHorizontal: 18,
-    paddingTop: 12,
+    borderRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 10,
     paddingBottom: 14,
 
-    // opacité du glass : change 0.80 pour plus / moins opaque
-    backgroundColor: "rgba(15, 15, 20, 0.80)",
+    backgroundColor: "rgba(9, 9, 12, 0.78)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
 
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
   },
 
   messages: {
     flex: 1,
   },
 
-  // chat bubbles
+  // chat bubbles (more minimal / less cute)
   bubble: {
-    maxWidth: "80%",
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 22,
-    marginVertical: 6,
+    maxWidth: "88%",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginVertical: 4,
   },
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#786a6a",
-    borderBottomRightRadius: 10,
+    backgroundColor: "#b91c1c", // deep red
+    borderRadius: 14,
+    borderBottomRightRadius: 6,
+    borderWidth: 1,
+    borderColor: "#fecaca",
   },
   botBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(15,23,42,0.96)", // dark slate
+    borderRadius: 14,
+    borderBottomLeftRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    borderBottomLeftRadius: 10,
+    borderColor: "rgba(148,163,184,0.45)",
+  },
+  thinkingBubble: {
+    opacity: 0.8,
   },
 
   bubbleText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
   },
   userText: {
     color: "white",
+    fontWeight: "500",
   },
   botText: {
     color: "#e5e7eb",
@@ -411,7 +271,7 @@ const styles = StyleSheet.create({
   imageMessage: {
     width: 190,
     height: 130,
-    borderRadius: 14,
+    borderRadius: 12,
   },
 
   // input bar
@@ -421,22 +281,12 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 10,
   },
-  cameraBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
   inputWrapper: {
     flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(148,163,184,0.4)",
+    backgroundColor: "rgba(15,23,42,0.92)",
     paddingHorizontal: 10,
   },
   input: {
@@ -446,105 +296,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     borderRadius: 999,
-    backgroundColor: "#961e1e",
+    backgroundColor: "#a01111ff",
     justifyContent: "center",
     alignItems: "center",
-    opacity: 1,
+    shadowColor: "#ffffff",
+    shadowOpacity: 0.0,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  sendBtnDisabled: {
+    opacity: 0.45,
   },
   sendIcon: {
     width: 20,
     height: 20,
     tintColor: "white",
     resizeMode: "contain",
-  },
-
-  iconSmall: {
-    width: 20,
-    height: 20,
-    tintColor: "white",
-    resizeMode: "contain",
-  },
-
-  /* --- Modal caméra --- */
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "black",
-  },
-  cameraFull: {
-    flex: 1,
-  },
-  modalBottomBar: {
-    paddingVertical: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
-  },
-  shutterOuter: {
-    width: 72,
-    height: 72,
-    borderRadius: 999,
-    borderWidth: 4,
-    borderColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shutterInner: {
-    width: 52,
-    height: 52,
-    borderRadius: 999,
-    backgroundColor: "white",
-  },
-  modalCloseAbsolute: {
-    position: "absolute",
-    top: 50,
-    right: 20,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  modalCloseText: {
-    color: "white",
-    fontSize: 16,
-  },
-  previewImage: {
-    flex: 1,
-    resizeMode: "cover",
-  },
-  modalButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    backgroundColor: "rgba(0,0,0,0.8)",
-  },
-  modalSecondaryButton: {
-    flex: 1,
-    marginRight: 8,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-    alignItems: "center",
-  },
-  modalSecondaryText: {
-    color: "white",
-    fontSize: 14,
-  },
-  modalPrimaryButton: {
-    flex: 1,
-    marginLeft: 8,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: "#ef4444",
-    alignItems: "center",
-  },
-  modalPrimaryText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
   },
 });
