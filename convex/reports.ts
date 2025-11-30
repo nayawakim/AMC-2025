@@ -16,25 +16,7 @@ export const reportPlace = mutation({
         const cellLat = roundCoordinates(args.latitude);
         const cellLong = roundCoordinates(args.longitude);
 
-        await ctx.db.insert("placeReports", {
-            type: args.type,
-            latitude: args.latitude,
-            longitude: args.longitude,
-            cellLat,
-            cellLong,
-            createdAt: Date.now(),
-            reporterId: args.reporterId,
-        });
-
-        const reports = await ctx.db
-            .query("placeReports")
-            .withIndex("by_cell", (q) =>
-                q.eq("cellLat", cellLat).eq("cellLong", cellLong)
-            )
-            .collect();
-        const count = reports.length;
-        const threshold = 1;
-
+        // Vérifier d'abord si une place existe déjà dans cette zone
         const existingPlace = await ctx.db
             .query("places")
             .filter((q) =>
@@ -47,7 +29,40 @@ export const reportPlace = mutation({
                 )
             )
             .first();
-        if (count >= threshold && !existingPlace) {
+
+        // Si une place existe déjà, ne rien faire
+        if (existingPlace) {
+            console.log("Place already exists in this area:", {
+                type: args.type,
+                cellLat,
+                cellLong,
+            });
+            return;
+        }
+
+        // Insérer le report
+        await ctx.db.insert("placeReports", {
+            type: args.type,
+            latitude: args.latitude,
+            longitude: args.longitude,
+            cellLat,
+            cellLong,
+            createdAt: Date.now(),
+            reporterId: args.reporterId,
+        });
+
+        // Compter les reports dans cette cellule
+        const reports = await ctx.db
+            .query("placeReports")
+            .withIndex("by_cell", (q) =>
+                q.eq("cellLat", cellLat).eq("cellLong", cellLong)
+            )
+            .collect();
+        const count = reports.length;
+        const threshold = 1;
+
+        // Créer la place immédiatement si le threshold est atteint
+        if (count >= threshold) {
             console.log("BACKEND: CREATING OFFICIAL PLACE", {
                 count,
                 threshold,
@@ -68,12 +83,9 @@ export const reportPlace = mutation({
                 threshold,
                 type: args.type,
                 needsMoreReports: count < threshold,
-                existingPlace: !!existingPlace,
                 cellLat,
                 cellLong,
-                reason: existingPlace
-                    ? "Place already exists in this area"
-                    : `Need ${threshold - count} more report(s) to create place`,
+                reason: `Need ${threshold - count} more report(s) to create place`,
             });
         }
     },
