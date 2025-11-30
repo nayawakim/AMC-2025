@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Mettre à jour la position de l'utilisateur
 export const updateUserLocation = mutation({
@@ -38,13 +38,7 @@ export const updateUserLocation = mutation({
 export const getActiveUsers = query({
     args: {},
     handler: async (ctx) => {
-        const thirtySecondsAgo = Date.now() - 30000; // 30 secondes
-        const allUsers = await ctx.db
-            .query("users")
-            .withIndex("by_lastSeen")
-            .filter((q) => q.gte(q.field("lastSeen"), thirtySecondsAgo))
-            .collect();
-
+        const allUsers = await ctx.db.query("users").collect();
         return allUsers;
     },
 });
@@ -69,8 +63,10 @@ export const markUserAsInfected = mutation({
         } else {
             // Si l'utilisateur n'existe pas encore, on ne fait rien
             // Il sera marqué comme infecté quand il se connectera
-            console.log("Utilisateur non trouvé pour marquer comme infecté:", args.userId);
+            console.log(
+                "Utilisateur non trouvé pour marquer comme infecté:",
+                args.userId
+            );
         }
     },
 });
-
