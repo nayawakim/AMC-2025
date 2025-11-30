@@ -33,7 +33,7 @@ export const reportPlace = mutation({
             )
             .collect();
         const count = reports.length;
-        const threshold = 3;
+        const threshold = 1;
 
         const existingPlace = await ctx.db
             .query("places")
