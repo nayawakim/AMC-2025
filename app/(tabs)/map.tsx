@@ -3,6 +3,7 @@ import InfectedUserMarker from "@/components/map/InfectedUserMarker";
 import OtherUserMarker from "@/components/map/OtherUserMarker";
 import { getUserId } from "@/lib/database";
 import { offsetCoordinates } from "@/lib/utils";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Slider from "@react-native-community/slider";
 import * as Location from "expo-location";
 import { Accelerometer } from "expo-sensors";
@@ -18,14 +19,19 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import MapView, {
+    Callout,
+    Circle,
+    Marker,
+    PROVIDER_GOOGLE,
+    Region,
+} from "react-native-maps";
 
 import PlaceMarker from "@/components/map/PlaceMarker";
+import { PLACE_TYPE_MAP } from "@/constants";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { PLACE_TYPE_MAP } from "@/constants";
 
 const apocalypseMapStyle = [
     {
@@ -150,12 +156,12 @@ export default function Map() {
         null
     );
     const [region, setRegion] = useState<Region | null>(null);
-    
+
     // États pour les alertes urgentes (modales personnalisées)
     const [shakeAlertVisible, setShakeAlertVisible] = useState(false);
     const [dangerAlertVisible, setDangerAlertVisible] = useState(false);
     const [dangerAlertMessage, setDangerAlertMessage] = useState("");
-    
+
     // Animations de tremblement pour les modales (X et Y pour un tremblement plus visible)
     const shakeAnimationX = useRef(new Animated.Value(0)).current;
     const shakeAnimationY = useRef(new Animated.Value(0)).current;
@@ -244,7 +250,7 @@ export default function Map() {
 
         const handleShake = () => {
             const now = Date.now();
-            
+
             // Vérifier le cooldown
             if (now - lastShakeAlertTimeRef.current < SHAKE_COOLDOWN) {
                 return; // Trop tôt depuis le dernier pop-up
@@ -321,7 +327,7 @@ export default function Map() {
             // Réinitialiser les animations
             shakeAnimationX.setValue(0);
             shakeAnimationY.setValue(0);
-            
+
             // Démarrer l'animation après un court délai pour s'assurer que la modale est montée
             const timer = setTimeout(() => {
                 // Animation X et Y en parallèle pour un effet plus naturel
@@ -487,7 +493,7 @@ export default function Map() {
             // Réinitialiser les animations
             dangerShakeAnimationX.setValue(0);
             dangerShakeAnimationY.setValue(0);
-            
+
             // Démarrer l'animation après un court délai pour s'assurer que la modale est montée
             const timer = setTimeout(() => {
                 // Animation X et Y en parallèle pour un effet plus naturel
@@ -732,32 +738,77 @@ export default function Map() {
                 <View style={styles.legendContent}>
                     {/* Shelter */}
                     <View style={styles.legendItem}>
-                        <View style={[styles.legendIconContainer, { backgroundColor: PLACE_TYPE_MAP.shelter.color }]}>
-                            <MaterialIcons name={PLACE_TYPE_MAP.shelter.icon} size={20} color="white" />
+                        <View
+                            style={[
+                                styles.legendIconContainer,
+                                {
+                                    backgroundColor:
+                                        PLACE_TYPE_MAP.shelter.color,
+                                },
+                            ]}
+                        >
+                            <MaterialIcons
+                                name={PLACE_TYPE_MAP.shelter.icon}
+                                size={20}
+                                color="white"
+                            />
                         </View>
-                        <Text style={styles.legendText}>{PLACE_TYPE_MAP.shelter.title}</Text>
+                        <Text style={styles.legendText}>
+                            {PLACE_TYPE_MAP.shelter.title}
+                        </Text>
                     </View>
-                    
+
                     {/* Food */}
                     <View style={styles.legendItem}>
-                        <View style={[styles.legendIconContainer, { backgroundColor: PLACE_TYPE_MAP.food.color }]}>
-                            <MaterialIcons name={PLACE_TYPE_MAP.food.icon} size={20} color="white" />
+                        <View
+                            style={[
+                                styles.legendIconContainer,
+                                { backgroundColor: PLACE_TYPE_MAP.food.color },
+                            ]}
+                        >
+                            <MaterialIcons
+                                name={PLACE_TYPE_MAP.food.icon}
+                                size={20}
+                                color="white"
+                            />
                         </View>
-                        <Text style={styles.legendText}>{PLACE_TYPE_MAP.food.title}</Text>
+                        <Text style={styles.legendText}>
+                            {PLACE_TYPE_MAP.food.title}
+                        </Text>
                     </View>
-                    
+
                     {/* Meds */}
                     <View style={styles.legendItem}>
-                        <View style={[styles.legendIconContainer, { backgroundColor: PLACE_TYPE_MAP.meds.color }]}>
-                            <MaterialIcons name={PLACE_TYPE_MAP.meds.icon} size={20} color="white" />
+                        <View
+                            style={[
+                                styles.legendIconContainer,
+                                { backgroundColor: PLACE_TYPE_MAP.meds.color },
+                            ]}
+                        >
+                            <MaterialIcons
+                                name={PLACE_TYPE_MAP.meds.icon}
+                                size={20}
+                                color="white"
+                            />
                         </View>
-                        <Text style={styles.legendText}>{PLACE_TYPE_MAP.meds.title}</Text>
+                        <Text style={styles.legendText}>
+                            {PLACE_TYPE_MAP.meds.title}
+                        </Text>
                     </View>
-                    
+
                     {/* Zone de danger */}
                     <View style={styles.legendItem}>
                         <View style={styles.legendHazardContainer}>
-                            <View style={[styles.legendHazardCircle, { borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.3)" }]} />
+                            <View
+                                style={[
+                                    styles.legendHazardCircle,
+                                    {
+                                        borderColor: "#dc2626",
+                                        backgroundColor:
+                                            "rgba(220, 38, 38, 0.3)",
+                                    },
+                                ]}
+                            />
                         </View>
                         <Text style={styles.legendText}>Zone de danger</Text>
                     </View>
@@ -798,7 +849,8 @@ export default function Map() {
                                 Math.cos(φ2) *
                                 Math.sin(Δλ / 2) *
                                 Math.sin(Δλ / 2);
-                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                        const c =
+                            2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
                         return R * c;
                     };
@@ -887,7 +939,7 @@ export default function Map() {
                     // On utilise une taille fixe assez grande pour être cliquable partout
                     // Le marker sera invisible mais cliquable sur une grande zone
                     const markerSize = 150; // Taille fixe assez grande pour couvrir la plupart des cercles
-                    
+
                     return (
                         <React.Fragment key={h._id}>
                             <Circle
@@ -907,14 +959,14 @@ export default function Map() {
                                 anchor={{ x: 0.5, y: 0.5 }}
                                 tracksViewChanges={false}
                             >
-                                <View 
+                                <View
                                     style={[
-                                        styles.invisibleMarker, 
-                                        { 
-                                            width: markerSize, 
+                                        styles.invisibleMarker,
+                                        {
+                                            width: markerSize,
                                             height: markerSize,
-                                        }
-                                    ]} 
+                                        },
+                                    ]}
                                     pointerEvents="box-none"
                                 />
                                 <Callout tooltip={false}>
@@ -985,9 +1037,7 @@ export default function Map() {
                                     isShakeDialogOpenRef.current = false;
                                 }}
                             >
-                                <Text
-                                    style={styles.alertModalButtonTextCancel}
-                                >
+                                <Text style={styles.alertModalButtonTextCancel}>
                                     Annuler
                                 </Text>
                             </TouchableOpacity>
@@ -1090,7 +1140,11 @@ export default function Map() {
             {/* Marqueur fixe au centre quand on ajoute */}
             {isAdding && (
                 <View pointerEvents="none" style={styles.centerMarkerContainer}>
-                    <View style={styles.centerMarker} />
+                    <MaterialIcons
+                        name="location-on"
+                        size={50}
+                        color="#ef4444"
+                    />
                 </View>
             )}
 
@@ -1336,7 +1390,6 @@ export default function Map() {
                     </View>
                 </View>
             )}
-
         </View>
     );
 }
@@ -1374,16 +1427,8 @@ const styles = StyleSheet.create({
         position: "absolute",
         top: "50%",
         left: "50%",
-        marginLeft: -10,
-        marginTop: -20,
-    },
-    centerMarker: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: "red",
-        borderWidth: 2,
-        borderColor: "white",
+        marginLeft: -25,
+        marginTop: -50,
     },
     addButtonContainer: {
         position: "absolute",
