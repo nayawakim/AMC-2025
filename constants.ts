@@ -1,37 +1,20 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { ComponentProps } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 
-export const PLACE_TYPE = {
-    SHELTER: "shelter",
-    FOOD: "food",
-    MEDS: "meds",
+export const PLACE_TYPE_MAP = {
+    shelter: {
+        title: "Abri",
+        icon: "home" as keyof typeof MaterialIcons.glyphMap,
+        color: "#3b82f6", // blue
+    },
+    food: {
+        title: "Nourriture / Eau",
+        icon: "restaurant" as keyof typeof MaterialIcons.glyphMap,
+        color: "#10b981", // green
+    },
+    meds: {
+        title: "Médicaments",
+        icon: "local-pharmacy" as keyof typeof MaterialIcons.glyphMap,
+        color: "#f59e0b", // amber
+    },
 } as const;
 
-export const PLACE_TYPE_VALUES = Object.values(PLACE_TYPE);
-
-type PlaceTypeConfig = {
-    icon: ComponentProps<typeof MaterialIcons>["name"];
-    title: string;
-    color: string;
-};
-
-export const PLACE_TYPE_MAP: Record<
-    (typeof PLACE_TYPE)[keyof typeof PLACE_TYPE],
-    PlaceTypeConfig
-> = {
-    [PLACE_TYPE.SHELTER]: {
-        icon: "home",
-        title: "Shelter",
-        color: "#4CAF50",
-    },
-    [PLACE_TYPE.FOOD]: {
-        icon: "restaurant",
-        title: "Food",
-        color: "#FF9800",
-    },
-    [PLACE_TYPE.MEDS]: {
-        icon: "local-hospital",
-        title: "Medical Supplies",
-        color: "#F44336",
-    },
-};
