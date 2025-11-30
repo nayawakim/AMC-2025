@@ -1,3 +1,5 @@
+// app/(tabs)/_layout.tsx
+import { HapticTab } from "@/components/haptic-tab";
 import { Tabs } from "expo-router";
 import React from "react";
 

@@ -1,25 +1,44 @@
-// app/(tabs)/camera.tsx
+// app/(tabs)/chat.tsx  (camera + chat, sleek UI + PNG icons)
 
 import { CameraView, useCameraPermissions } from "expo-camera";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+
+// Icon PNGs (relative path from app/(tabs)/chat.tsx)
+const CameraPng = require("../../assets/icons/camera.png");
+const SendPng = require("../../assets/icons/send.png");
+const FlipPng = require("../../assets/icons/flip.png");
+
+
+type Sender = "user" | "bot";
+
+type Message = {
+  id: string;
+  from: Sender;
+  text?: string;
+  imageUri?: string;
+};
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isFront, setIsFront] = useState(false);
 
+  // référence vers la caméra pour prendre une photo
+  const cameraRef = useRef<CameraView | null>(null);
+
   // état du chat
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     { id: "1", from: "user", text: "c'est un zombie ??" },
     {
       id: "2",
@@ -39,6 +58,25 @@ export default function CameraScreen() {
       { id: Date.now().toString(), from: "user", text: message.trim() },
     ]);
     setMessage("");
+  };
+
+  // 📷 bouton à côté du send : prend une photo et l'envoie dans le chat
+  const handleTakePicture = async () => {
+    try {
+      if (!cameraRef.current) return;
+    const photo = await cameraRef.current.takePictureAsync();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          from: "user",
+          imageUri: photo.uri,
+        },
+      ]);
+    } catch (e) {
+      console.warn("Erreur prise de photo", e);
+    }
   };
 
   // Permissions pas encore chargées
@@ -68,15 +106,22 @@ export default function CameraScreen() {
     <View style={styles.root}>
       {/* Bloc caméra en haut */}
       <View style={styles.cameraWrapper}>
-        <CameraView style={StyleSheet.absoluteFill} facing={isFront ? "front" : "back"} />
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={isFront ? "front" : "back"}
+        />
 
-        {/* Bouton flip par-dessus la caméra */}
+        {/* Overlay gradient */}
+        <View style={styles.cameraOverlay} />
+
+        {/* Controls par-dessus la caméra */}
         <View style={styles.controls}>
           <TouchableOpacity
-            style={styles.switchBtn}
+            style={styles.iconButtonGhost}
             onPress={() => setIsFront(!isFront)}
           >
-            <Text style={styles.buttonText}>🔄 Flip</Text>
+            <Image source={FlipPng} style={styles.iconSmall} />
           </TouchableOpacity>
         </View>
       </View>
@@ -99,19 +144,36 @@ export default function CameraScreen() {
                 m.from === "user" ? styles.userBubble : styles.botBubble,
               ]}
             >
-              <Text
-                style={[
-                  styles.bubbleText,
-                  m.from === "user" ? styles.userText : styles.botText,
-                ]}
-              >
-                {m.text}
-              </Text>
+              {m.imageUri && (
+                <Image
+                  source={{ uri: m.imageUri }}
+                  style={styles.imageMessage}
+                />
+              )}
+
+              {m.text && (
+                <Text
+                  style={[
+                    styles.bubbleText,
+                    m.from === "user" ? styles.userText : styles.botText,
+                  ]}
+                >
+                  {m.text}
+                </Text>
+              )}
             </View>
           ))}
         </ScrollView>
 
+        {/* Ligne d'input : bouton caméra + input + bouton send */}
         <View style={styles.inputRow}>
+          <TouchableOpacity
+            style={styles.cameraBtn}
+            onPress={handleTakePicture}
+          >
+            <Image source={CameraPng} style={styles.iconSmall} />
+          </TouchableOpacity>
+
           <TextInput
             style={styles.input}
             placeholder="Comment puis-je t'aider ?"
@@ -120,7 +182,7 @@ export default function CameraScreen() {
             onChangeText={setMessage}
           />
           <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-            <Text style={styles.sendText}>➤</Text>
+            <Image source={SendPng} style={styles.sendIcon} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -132,7 +194,7 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#020617",
+    backgroundColor: "#020617", // dark navy
   },
 
   /* --- états simples --- */
@@ -153,22 +215,45 @@ const styles = StyleSheet.create({
 
   /* --- caméra --- */
   cameraWrapper: {
-    height: "55%", // ~ comme dans ton Figma
+    height: "25%",
+    marginHorizontal: 16,
+    marginTop: 16,
     backgroundColor: "black",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderRadius: 24,
     overflow: "hidden",
+  },
+  cameraOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+    backgroundColor: "rgba(15,23,42,0.6)",
   },
   controls: {
     position: "absolute",
-    bottom: 20,
-    width: "100%",
+    right: 12,
+    bottom: 12,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
-  switchBtn: {
-    backgroundColor: "rgba(255,255,255,0.3)",
-    padding: 12,
-    borderRadius: 50,
+
+  iconButtonGhost: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: "rgba(15,23,42,0.75)",
+    borderWidth: 1,
+    borderColor: "#4b5563",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  iconSmall: {
+    width: 20,
+    height: 20,
+    resizeMode: "contain",
   },
 
   /* --- chat --- */
@@ -183,34 +268,58 @@ const styles = StyleSheet.create({
   bubble: {
     maxWidth: "80%",
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 18,
     marginVertical: 6,
+    gap: 6,
   },
   userBubble: {
     alignSelf: "flex-end",
     backgroundColor: "#ef4444",
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
   },
   botBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "#1f2937",
-    borderBottomLeftRadius: 4,
+    backgroundColor: "#0f172a",
+    borderWidth: 1,
+    borderColor: "#1f2937",
+    borderBottomLeftRadius: 6,
   },
   bubbleText: {
     fontSize: 14,
+    lineHeight: 20,
   },
   userText: {
     color: "white",
+    fontWeight: "500",
   },
   botText: {
     color: "#e5e7eb",
   },
+
+  imageMessage: {
+    width: 180,
+    height: 120,
+    borderRadius: 16,
+  },
+
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     gap: 8,
   },
+
+  cameraBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#374151",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#020617",
+  },
+
   input: {
     flex: 1,
     backgroundColor: "#020617",
@@ -222,6 +331,7 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
   },
+
   sendBtn: {
     width: 44,
     height: 44,
@@ -230,9 +340,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  sendText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
+  sendIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "white",
+    resizeMode: "contain",
   },
 });
