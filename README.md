@@ -2,11 +2,13 @@
 
 Application mobile développée dans le cadre de la **Compétition de développement mobile collégiale et universitaire AMC 2025**, organisée par **ApplETS** à Montréal.
 
-## Capture d'écran
-<img width="510" height="1048" alt="Capture d’écran 2026-03-19 095843" src="https://github.com/user-attachments/assets/9cc161b9-e37f-42a8-b32f-4cdf6ba2239e" />
-<img width="512" height=<img width="515" height="1075" alt="Capture d’écran 2026-03-19 095929" src="https://github.com/user-attachments/assets/ca550f0a-87af-4172-94ec-926d037adf20" />
-<img width="515" height="1075" alt="Capture d’écran 2026-03-19 095929" src="https://github.com/user-attachments/assets/53f969c1-7dc2-4e71-ac48-1b5868f84edc" />
-<img width="511" height="1076" alt="Capture d’écran 2026-03-19 095947" src="https://github.com/user-attachments/assets/eb0858a1-c56c-4268-94b5-fdba5cd326ae" />
+## Captures d’écran
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/9cc161b9-e37f-42a8-b32f-4cdf6ba2239e" alt="Capture d’écran 1" width="220" />
+  <img src="https://github.com/user-attachments/assets/ca550f0a-87af-4172-94ec-926d037adf20" alt="Capture d’écran 2" width="220" />
+  <img src="https://github.com/user-attachments/assets/53f969c1-7dc2-4e71-ac48-1b5868f84edc" alt="Capture d’écran 3" width="220" />
+  <img src="https://github.com/user-attachments/assets/eb0858a1-c56c-4268-94b5-fdba5cd326ae" alt="Capture d’écran 4" width="220" />
+</p>
 
 ## Aperçu du projet
 
