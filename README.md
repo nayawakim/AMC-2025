@@ -1,50 +1,82 @@
-# Welcome to your Expo app 👋
+# AMC-2025
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application mobile développée dans le cadre de la **Compétition de développement mobile collégiale et universitaire AMC 2025**, organisée par **ApplETS** à Montréal.
 
-## Get started
+## Capture d'écran
+<img width="510" height="1048" alt="Capture d’écran 2026-03-19 095843" src="https://github.com/user-attachments/assets/9cc161b9-e37f-42a8-b32f-4cdf6ba2239e" />
+<img width="512" height=<img width="515" height="1075" alt="Capture d’écran 2026-03-19 095929" src="https://github.com/user-attachments/assets/ca550f0a-87af-4172-94ec-926d037adf20" />
+<img width="515" height="1075" alt="Capture d’écran 2026-03-19 095929" src="https://github.com/user-attachments/assets/53f969c1-7dc2-4e71-ac48-1b5868f84edc" />
+<img width="511" height="1076" alt="Capture d’écran 2026-03-19 095947" src="https://github.com/user-attachments/assets/eb0858a1-c56c-4268-94b5-fdba5cd326ae" />
 
-1. Install dependencies
+## Aperçu du projet
 
-   ```bash
-   npm install
-   ```
+AMC-2025 est une application mobile de survie en contexte d’**apocalypse zombie**. Elle combine une **carte collaborative**, un **assistant IA**, et un **scan QR** afin d’aider les utilisateurs à se repérer, signaler des zones dangereuses et interagir rapidement avec l’application dans un univers immersif.
 
-2. Start the app
+L’application a été développée avec **Expo / React Native** et s’appuie sur **Convex** pour la logique backend temps réel. Le projet inclut aussi l’utilisation de la **caméra**, de la **géolocalisation**, de **Google Maps**, et d’un stockage local avec **SQLite**.
 
-   ```bash
-   npx expo start
-   ```
+## Contexte
 
-In the output, you'll find options to open the app in a
+La compétition AMC 2025 est une compétition collégiale et universitaire de développement mobile. Elle accueille des équipes de **4 à 5 personnes**, offre des **prix** et laisse aux participants le choix des outils et plateformes de développement.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Ce dépôt contient notre proposition d’application mobile réalisée dans ce contexte hackathon.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Fonctionnalités principales
 
-## Get a fresh project
+### 1. Carte interactive de survie
+- Affichage de la position de l’utilisateur sur la carte
+- Consultation de points utiles : **abris**, **nourriture/eau**, **médicaments**
+- Signalement de **zones de danger** avec niveau de sévérité
+- Ajout, modification et suppression de points sur la carte
+- Visualisation de zones dangereuses avec rayon et couleur selon la gravité
 
-When you're ready, run:
+### 2. Chat IA intégré
+- Interface de discussion immersive dans un univers d’apocalypse zombie
+- Envoi de messages à une IA conseillère
+- Réponses générées via l’API OpenAI à travers une action Convex
+- Possibilité de capturer une photo depuis la caméra dans l’interface de chat
+
+### 3. Scan QR
+- Lecture de codes QR avec la caméra
+- Affichage immédiat du contenu scanné
+- Fonctionnalité pensée pour l’identification rapide d’éléments ou d’utilisateurs dans l’univers du projet
+
+### 4. Stockage local et expérimentation
+- Utilisation de **SQLite** pour stocker certains identifiants localement
+- Sauvegarde de QR codes scannés dans une base locale
+- Page de test pour valider la logique de persistance locale
+
+## Stack technique
+
+### Frontend
+- React Native
+- Expo
+- Expo Router
+- TypeScript
+- NativeWind / Tailwind CSS
+
+### Fonctionnalités mobiles
+- Expo Camera
+- Expo Location
+- React Native Maps
+- Expo SQLite
+- Expo Haptics
+
+### Backend / services
+- Convex
+- OpenAI API
+
+## Structure du projet
 
 ```bash
-npm run reset-project
-```
+AMC-2025/
+├── app/                  # Routes et écrans Expo Router
+│   ├── (tabs)/
+│   │   ├── map.tsx       # Carte interactive
+│   │   ├── chat.tsx      # Chat IA + caméra
+│   │   └── scan.tsx      # Scan QR
+├── components/           # Composants réutilisables UI et carte
+├── convex/               # Backend Convex (chat, map, reports, schema)
+├── lib/                  # Utilitaires, thème, SQLite
+├── assets/               # Icônes, images et ressources visuelles
+└── constants/            # Constantes globales du projet
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
