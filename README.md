@@ -5,7 +5,6 @@ Application mobile développée dans le cadre de la **Compétition de développe
 ## Capture d'écran
 <img width="510" height="1048" alt="Capture d’écran 2026-03-19 095843" src="https://github.com/user-attachments/assets/9cc161b9-e37f-42a8-b32f-4cdf6ba2239e" />
 <img width="512" height=<img width="515" height="1075" alt="Capture d’écran 2026-03-19 095929" src="https://github.com/user-attachments/assets/ca550f0a-87af-4172-94ec-926d037adf20" />
-"1081" alt="Capture d’écran 2026-03-19 095909" src="https://github.com/user-attachments/assets/8f59f292-5c5d-4871-a08e-7ce6d6397e3c" />
 <img width="515" height="1075" alt="Capture d’écran 2026-03-19 095929" src="https://github.com/user-attachments/assets/53f969c1-7dc2-4e71-ac48-1b5868f84edc" />
 <img width="511" height="1076" alt="Capture d’écran 2026-03-19 095947" src="https://github.com/user-attachments/assets/eb0858a1-c56c-4268-94b5-fdba5cd326ae" />
 
